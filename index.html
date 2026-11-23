@@ -272,8 +272,8 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
 .res:active{background:#f6fafe}
 .res .r-emoji{font-size:17px;flex:0 0 auto;width:24px;text-align:center}
 .res .r-main{flex:1;min-width:0}
-.res .r-name{font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.res .r-sub{font-size:10.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res .r-name{display:block;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res .r-sub{display:block;font-size:10.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .res .r-add{font-size:16px;color:#2f7fd0;flex:0 0 auto}
 .res.done{opacity:.55;cursor:default}
 .res.done .r-add{font-size:11px;font-weight:700;color:var(--muted)}
@@ -651,7 +651,7 @@ function filtered(){
 
 function cardHTML(p){
   var d = placeData[p.id];
-  var meta = d ? weatherMeta(d.current.code) : {icon:'⏳', label:'取得中'};
+  var meta = d ? weatherMeta(d.current.code) : (loadErr ? {icon:'❔', label:'—'} : {icon:'⏳', label:'取得中'});
   var a = d ? analyze(p.id) : null;
   var t = d ? round(d.current.temp) : null;
   var hi = d ? round(d.daily.temperature_2m_max[0]) : null;
