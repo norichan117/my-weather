@@ -70,12 +70,18 @@ function ok(cond, label, extra) {
   const lf = await page.evaluate(() => window.__mw.radar.frames().length);
   ok(lf >= 5, '気象庁の時刻一覧から雨雲のコマが取れる（' + lf + 'コマ）', lf);
   await page.evaluate(() => window.__mw.radar.play(false));
-  const liveFi = await page.evaluate(() => window.__mw.radar.frameIndex());
+  const liveFi = await page.evaluate(() => {
+    const fr = window.__mw.radar.frames(), now = Date.now();
+    let best = 0, gap = Infinity;
+    fr.forEach((f, i) => { const d = Math.abs(f.t - now); if (d < gap) { gap = d; best = i; } });
+    return best;
+  });
   await page.evaluate(() => window.__mw.radar.setFrame(0));
   await waitTiles(() => window.__mw.radar.rainTiles());
   ok((await page.evaluate(() => window.__mw.radar.rainTiles())).loaded >= 1, '過去のコマのタイルも読める');
   await page.evaluate(i => window.__mw.radar.setFrame(i), liveFi);
   await page.waitForTimeout(500);
+  ok(/現在|分前|分後/.test(await page.textContent('#rmTag')), '表示中のコマの時刻がわかる', await page.textContent('#rmTag'));
   await page.screenshot({ path: SHOT + 'live-10-radar-rain.' + TAG + 'png' });
 
   await page.tap('#rmModes button[data-mode="wind"]');
