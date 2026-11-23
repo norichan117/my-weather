@@ -3,8 +3,8 @@
 */
 const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('/workspace/.testdeps/node_modules/jsdom');
-const { buildFixture, BASE_DATE } = require('./test-fixture');
+const { JSDOM, VirtualConsole } = require('/workspace/.testdeps/node_modules/jsdom');
+const { buildFixture, buildField, BASE_DATE } = require('./test-fixture');
 
 let pass = 0, fail = 0;
 function ok(cond, label, extra) {
@@ -31,10 +31,16 @@ const OLD_PLACES = [
 function newApp(opts) {
   const o = opts || {};
   const calls = [];
+  /* jsdom は canvas を持たないので、その「未実装」通知だけを黙らせる */
+  const vc = new VirtualConsole();
+  vc.on('jsdomError', e => {
+    if(!/Not implemented: HTMLCanvasElement/.test(String(e && e.message))) console.error(e && e.message);
+  });
   const dom = new JSDOM(html, {
     url: 'https://norichan117.github.io/my-weather/',
     runScripts: 'dangerously',
     pretendToBeVisual: true,
+    virtualConsole: vc,
     beforeParse(window) {
       window.confirm = () => true;
       if (o.seed) window.localStorage.setItem('my_weather_v1', typeof o.seed === 'string' ? o.seed : JSON.stringify(o.seed));
@@ -43,6 +49,11 @@ function newApp(opts) {
         if (o.fail) return Promise.reject(new Error('offline'));
         const count = (String(url).match(/,/g) ? 1 : 0) + 0; // 使わない
         if (String(url).indexOf('/search') >= 0) return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) });
+        if (String(url).indexOf('pressure_msl') >= 0) {
+          const mf = String(url).match(/latitude=([^&]+)/);
+          const nf = mf ? mf[1].split(',').length : 56;
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(buildField(nf)) });
+        }
         // latitude の数を数えて地点数とする
         const m = String(url).match(/latitude=([^&]+)/);
         const n = m ? m[1].split(',').length : 8;
@@ -63,8 +74,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(!!mw, '__mw フックがある');
   eq(mw.state.places.length, 8, '初期地点は8か所');
   eq(doc.querySelectorAll('.list .card').length, 8, 'カードが8枚描画される');
-  eq([...doc.querySelectorAll('.pill')].map(p => p.textContent.replace(/\s/g, '')),
+  eq([...doc.querySelectorAll('.pill[data-filter]')].map(p => p.textContent.replace(/\s/g, '')),
      ['すべて8', '生活3', '乗務範囲5'], 'ピルの件数（すべて8/生活3/乗務範囲5）');
+  ok(doc.querySelector('#pillRadar'), 'ピルに「🗺️ レーダー」がある');
   ok(doc.getElementById('updated').textContent.indexOf('更新') >= 0, '最終更新時刻が出る', doc.getElementById('updated').textContent);
   ok(calls[0].indexOf('wind_speed_unit=ms') > 0, 'APIに wind_speed_unit=ms を指定');
   ok(calls[0].indexOf('timezone=auto') > 0, 'APIに timezone=auto を指定');
@@ -197,6 +209,53 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(160);
   eq(app6.window.__mw.state.places.length, 8, '引き継ぎ済みのデータは変わらない（再読込）');
   eq(app6.window.__mw.state.places[0].name, '自宅（北区）', '再読込しても自宅はぼけたまま');
+
+  console.log('12. レーダー（雨雲・風速・台風／気圧）');
+  const app7 = newApp();
+  await wait(220);
+  const m7 = app7.window.__mw, d7 = app7.doc, r7r = m7.radar;
+  ok(!!r7r, 'radar フックがある');
+  ok(!!d7.getElementById('radarPanel'), 'レーダーパネルがある');
+  eq(r7r.mode(), 'rain', '初期表示は「雨雲」');
+  eq(d7.querySelectorAll('#rmModes button[data-mode]').length, 3, '雨雲・風速・台風の3ボタン');
+  eq(d7.querySelector('#rmModes button[data-mode="rain"]').getAttribute('aria-selected'), 'true', '雨雲が選択済み');
+  eq(d7.querySelectorAll('#rmPins .rm-pin').length, 8, '登録8地点のピンが立つ');
+  ok(d7.querySelector('#rmPins .rm-pin.home'), '自宅のピンは区別される');
+  ok(/^\d\d:\d\d/.test(d7.getElementById('rmTag').textContent), '雨雲の時刻ラベル', d7.getElementById('rmTag').textContent);
+  ok(r7r.frames().length >= 5, '時間経過のコマがある', r7r.frames().length);
+
+  r7r.setMode('wind');
+  await wait(250);
+  eq(r7r.mode(), 'wind', '風速に切り替わる');
+  eq(d7.querySelector('#rmModes button[data-mode="wind"]').getAttribute('aria-selected'), 'true', '風速ボタンが選択状態');
+  eq(d7.querySelector('#rmModes button[data-mode="rain"]').getAttribute('aria-selected'), 'false', '雨雲ボタンの選択が外れる');
+  ok(d7.getElementById('rmRain').hidden, '風速では雨雲タイルを隠す');
+  ok(d7.getElementById('rmFoot').textContent.indexOf('最大') >= 0, '最大風速を表示', d7.getElementById('rmFoot').textContent);
+  ok(!!r7r.field() && r7r.field().lat.length === 56, '風・気圧の格子点データ（8×7）', r7r.field() && r7r.field().lat.length);
+
+  r7r.setMode('pressure');
+  await wait(250);
+  eq(r7r.mode(), 'pressure', '台風・気圧に切り替わる');
+  ok(d7.getElementById('rmFoot').textContent.indexOf('気圧') >= 0, '気圧の範囲を表示', d7.getElementById('rmFoot').textContent);
+  ok((d7.querySelector('#rmFoot a') || {}).getAttribute && d7.querySelector('#rmFoot a').getAttribute('href').indexOf('typhoon') > 0, '気象庁 台風情報へのリンク');
+
+  r7r.setMode('rain');
+  await wait(120);
+  ok(!d7.getElementById('rmRain').hidden, '雨雲に戻すとタイルが再表示');
+  const fr = r7r.frames();
+  r7r.setFrame(fr.length - 1);
+  eq(r7r.frameIndex(), fr.length - 1, 'コマを指定できる');
+
+  r7r.setFocus(true);
+  ok(r7r.isFocus(), 'ピルから拡大表示できる');
+  ok(d7.getElementById('radarPanel').classList.contains('focus'), '拡大用クラスが付く');
+  r7r.setFocus(false);
+  ok(!r7r.isFocus(), '元に戻せる');
+
+  ok(d7.querySelector('#rmPins .rm-pin[data-id="kix"]'), '関空のピンがある');
+  d7.querySelector('#rmPins .rm-pin[data-id="kix"]').dispatchEvent(new app7.window.Event('click', { bubbles: true }));
+  await wait(120);
+  ok(d7.getElementById('detailSheet').classList.contains('open'), 'ピンのタップで地点の詳細が開く');
 
   console.log('\n結果: ' + pass + ' 件成功 / ' + fail + ' 件失敗');
   process.exit(fail ? 1 : 0);

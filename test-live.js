@@ -33,6 +33,16 @@ function ok(cond, label, extra) {
 
   const noHScroll = async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
   const cards = async () => page.$$eval('.list .card', els => els.length);
+  const waitTiles = async (fn, ms) => {
+    const t0 = Date.now();
+    let t = null;
+    while (Date.now() - t0 < (ms || 8000)) {
+      t = await page.evaluate(fn);
+      if (t.total > 0 && t.loaded === t.total) return t;
+      await page.waitForTimeout(400);
+    }
+    return t;
+  };
 
   console.log('1. 公開URL');
   const res = await page.goto(URL + (URL.indexOf('?') >= 0 ? '&' : '?') + 'v=' + Date.now(), { waitUntil: 'load' });
@@ -46,8 +56,52 @@ function ok(cond, label, extra) {
   ok((await page.textContent('#updated')).indexOf('更新') >= 0, '最終更新時刻', await page.textContent('#updated'));
   ok(await noHScroll(), '横スクロールなし（390px）');
   const visible = await page.$$eval('.list .card', els => els.filter(c => { const r = c.getBoundingClientRect(); return r.top < 844 && r.bottom <= 844; }).length);
-  ok(visible >= 5, '1画面に5地点以上（実際: ' + visible + '）', visible);
+  ok(visible >= 2, 'レーダーの下に地点カードが見える（実際: ' + visible + '）', visible);
   await page.screenshot({ path: SHOT + 'live-01-list.' + TAG + 'png' });
+
+  console.log('2R. レーダー（初期表示・タイル・3モード・拡大）');
+  ok(await page.$eval('#radarPanel', el => { const r = el.getBoundingClientRect(); return r.top > 0 && r.bottom < 844; }), 'レーダーがノータッチで画面内に出る');
+  const lt = await waitTiles(() => window.__mw.radar.rainTiles());
+  ok(lt && lt.total > 0 && lt.loaded === lt.total, '気象庁の雨雲タイルが読み込まれる', lt);
+  const lb = await waitTiles(() => window.__mw.radar.baseTiles());
+  ok(lb && lb.total > 0 && lb.loaded === lb.total, '国土地理院の地図タイルが読み込まれる', lb);
+  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 8, '8地点のピン', await page.evaluate(() => window.__mw.radar.pinCount()));
+  ok(/^\d\d:\d\d/.test(await page.textContent('#rmTag')), '雨雲の時刻ラベル', await page.textContent('#rmTag'));
+  const lf = await page.evaluate(() => window.__mw.radar.frames().length);
+  ok(lf >= 5, '気象庁の時刻一覧から雨雲のコマが取れる（' + lf + 'コマ）', lf);
+  await page.evaluate(() => window.__mw.radar.play(false));
+  const liveFi = await page.evaluate(() => window.__mw.radar.frameIndex());
+  await page.evaluate(() => window.__mw.radar.setFrame(0));
+  await waitTiles(() => window.__mw.radar.rainTiles());
+  ok((await page.evaluate(() => window.__mw.radar.rainTiles())).loaded >= 1, '過去のコマのタイルも読める');
+  await page.evaluate(i => window.__mw.radar.setFrame(i), liveFi);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: SHOT + 'live-10-radar-rain.' + TAG + 'png' });
+
+  await page.tap('#rmModes button[data-mode="wind"]');
+  await page.waitForTimeout(2500);
+  ok(await page.evaluate(() => window.__mw.radar.mode()) === 'wind', '風速に切り替わる');
+  ok(await page.evaluate(() => window.__mw.radar.canvasInk()) > 2000, '風向・風速の矢印が描かれる', await page.evaluate(() => window.__mw.radar.canvasInk()));
+  ok((await page.textContent('#rmFoot')).indexOf('最大') >= 0, '最大風速を表示', await page.textContent('#rmFoot'));
+  await page.screenshot({ path: SHOT + 'live-11-radar-wind.' + TAG + 'png' });
+
+  await page.tap('#rmModes button[data-mode="pressure"]');
+  await page.waitForTimeout(2000);
+  ok(await page.evaluate(() => window.__mw.radar.mode()) === 'pressure', '台風・気圧に切り替わる');
+  ok(await page.evaluate(() => window.__mw.radar.canvasInk()) > 20000, '気圧の色分けが描かれる');
+  ok((await page.textContent('#rmFoot')).indexOf('気圧') >= 0, '気圧の範囲を表示', await page.textContent('#rmFoot'));
+  await page.screenshot({ path: SHOT + 'live-12-radar-pressure.' + TAG + 'png' });
+
+  await page.tap('#pillRadar');
+  await page.waitForTimeout(800);
+  ok(await page.evaluate(() => window.__mw.radar.isFocus()), 'ピルのタップで拡大表示');
+  ok(await page.$eval('#radarMap', el => el.clientHeight) > 420, '地図が全画面近くに大きくなる', await page.$eval('#radarMap', el => el.clientHeight));
+  await page.screenshot({ path: SHOT + 'live-13-radar-focus.' + TAG + 'png' });
+  await page.tap('#rmFocus');
+  await page.waitForTimeout(500);
+  ok(!(await page.evaluate(() => window.__mw.radar.isFocus())), '⤡で縮小できる');
+  await page.tap('#rmModes button[data-mode="rain"]');
+  await page.waitForTimeout(600);
 
   console.log('3. 絞り込みタブ');
   await page.tap('.pill[data-filter="life"]');

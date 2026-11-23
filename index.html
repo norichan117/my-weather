@@ -287,6 +287,49 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
   opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:90;max-width:88vw;text-align:center;
 }
 .toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ===== レーダー ===== */
+.pills{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none}
+.pills::-webkit-scrollbar{display:none}
+.pill.radar-pill{background:#eaf3ff;border-color:#bcd8f5;color:#1f5fa8}
+.pill.radar-pill:active{background:#dbeafe}
+.radar{position:relative;margin:0 0 10px;background:#fff;border:1px solid rgba(227,235,243,.95);border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,42,67,.05),0 7px 18px -12px rgba(16,42,67,.35)}
+.radar-top{display:flex;align-items:center;gap:7px;padding:8px 10px 6px}
+.radar-title{flex:1;min-width:0;display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:#42566b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.radar-live{font-size:9px;font-weight:800;color:#1b7a43;background:#e8f7ee;border:1px solid #c9ecd7;border-radius:6px;padding:1px 5px;letter-spacing:.04em}
+.radar-ty{font-size:9.5px;font-weight:800;color:#8a3f00;background:#fff1e0;border:1px solid #ffe0b8;border-radius:6px;padding:1px 5px;white-space:nowrap}
+.radar-btn{width:27px;height:27px;flex:0 0 auto;border-radius:9px;border:1px solid var(--line);background:#f8fbfe;font-size:12px;color:#3d5164;padding:0;cursor:pointer;line-height:1}
+.radar-btn:active{transform:scale(.94)}
+.radar-modes{display:flex;gap:5px;padding:0 9px 7px}
+.radar-modes button{flex:1;min-width:0;border:1px solid var(--line);background:#f8fbfe;border-radius:9px;padding:6px 0;font-size:11.5px;font-weight:750;color:#3d5164;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.radar-modes button[aria-selected="true"]{background:var(--ink-btn);border-color:var(--ink-btn);color:#fff}
+.radar-map{position:relative;height:232px;overflow:hidden;background:#e9f1f8;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.radar-map:active{cursor:grabbing}
+.rm-layer{position:absolute;inset:0;overflow:hidden}
+.rm-layer img{position:absolute;left:0;top:0;width:256px;height:256px;pointer-events:none;-webkit-user-drag:none}
+.rm-base img{filter:saturate(.42) brightness(1.05) contrast(.95)}
+.rm-canvas{position:absolute;left:0;top:0;pointer-events:none}
+.rm-pins{position:absolute;inset:0;pointer-events:none}
+.rm-pin{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;background:none;border:0;padding:0;cursor:pointer;display:block}
+.rm-pin .d{display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #2f7fd0;font-size:10px;line-height:1;box-shadow:0 1px 3px rgba(16,42,67,.35);font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.rm-pin.home .d{border-color:#0f7a43;background:#f2fbf6}
+.rm-pin .l{position:absolute;left:50%;top:19px;transform:translateX(-50%);font-size:9px;font-weight:800;color:#1d3348;background:rgba(255,255,255,.86);border:1px solid rgba(227,235,243,.9);border-radius:4px;padding:0 3px;white-space:nowrap;line-height:1.35}
+.rm-tag{position:absolute;left:7px;top:7px;z-index:3;font-size:10px;font-weight:800;color:#22384e;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:7px;padding:2px 6px;font-variant-numeric:tabular-nums}
+.rm-ctrl{position:absolute;right:7px;bottom:7px;z-index:3;display:flex;flex-direction:column;gap:4px}
+.rm-ctrl button{width:26px;height:26px;border-radius:8px;border:1px solid rgba(227,235,243,.95);background:rgba(255,255,255,.93);font-size:14px;font-weight:800;color:#22384e;padding:0;line-height:1;cursor:pointer}
+.rm-attr{position:absolute;left:7px;bottom:7px;z-index:3;font-size:8.5px;color:#4c6478;background:rgba(255,255,255,.72);border-radius:5px;padding:1px 4px}
+.radar-foot{display:flex;align-items:center;gap:7px;padding:7px 10px 8px;min-height:30px;font-size:10px;color:var(--muted)}
+.radar-foot .play{width:24px;height:24px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line);background:#f8fbfe;font-size:9px;line-height:1;padding:0;cursor:pointer;color:#22384e}
+.radar-foot .bar{flex:1;min-width:0;display:flex;align-items:center;gap:6px}
+.radar-scale{flex:0 0 58px;height:6px;border-radius:3px}
+.radar-note{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.radar-note b{color:#22384e}
+.radar-link{color:#1f5fa8;font-weight:800;text-decoration:none;white-space:nowrap;flex:0 0 auto}
+.radar-shade{position:fixed;inset:0;z-index:65;background:rgba(12,26,40,.45);opacity:0;pointer-events:none;transition:opacity .18s}
+.radar-shade.open{opacity:1;pointer-events:auto}
+body.radar-open{overflow:hidden}
+.radar.focus{position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top));bottom:calc(8px + env(safe-area-inset-bottom));z-index:66;margin:0;display:flex;flex-direction:column;border-radius:18px;box-shadow:0 20px 50px -14px rgba(12,26,40,.6)}
+.radar.focus .radar-map{flex:1 1 auto;height:auto;min-height:180px}
 </style>
 </head>
 <body>
@@ -300,6 +343,7 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
       </div>
     </div>
     <div class="pills" id="pills" role="tablist" aria-label="地点の絞り込み">
+      <button class="pill radar-pill" id="pillRadar" aria-label="レーダーを大きく開く"><span class="emoji">🗺️</span>レーダー</button>
       <button class="pill" data-filter="all" role="tab" aria-selected="true">すべて<span class="cnt" id="cntAll">0</span></button>
       <button class="pill" data-filter="life" role="tab" aria-selected="false">生活<span class="cnt" id="cntLife">0</span></button>
       <button class="pill" data-filter="work" role="tab" aria-selected="false">乗務範囲<span class="cnt" id="cntWork">0</span></button>
@@ -307,6 +351,27 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
   </header>
 
   <main>
+    <section id="radarPanel" class="radar" aria-label="雨雲・風速・台風のレーダー">
+      <div class="radar-top">
+        <div class="radar-title"><span class="emoji">🗺️</span>レーダー<span class="radar-live" id="rmLive">LIVE</span><span class="radar-ty" id="rmTy" hidden></span></div>
+        <button class="radar-btn" id="rmFocus" aria-label="レーダーを拡大表示">⤢</button>
+      </div>
+      <div class="radar-modes" id="rmModes" role="tablist" aria-label="レーダーの表示切替">
+        <button role="tab" data-mode="rain" aria-selected="true">🌧️ 雨雲</button>
+        <button role="tab" data-mode="wind" aria-selected="false">💨 風速</button>
+        <button role="tab" data-mode="pressure" aria-selected="false">🌀 台風・気圧</button>
+      </div>
+      <div class="radar-map" id="radarMap">
+        <div class="rm-layer rm-base" id="rmBase"></div>
+        <div class="rm-layer rm-rain" id="rmRain"></div>
+        <canvas class="rm-canvas" id="rmCanvas"></canvas>
+        <div class="rm-pins" id="rmPins"></div>
+        <div class="rm-tag" id="rmTag">—</div>
+        <div class="rm-ctrl"><button id="rmZin" aria-label="拡大">＋</button><button id="rmZout" aria-label="縮小">−</button></div>
+        <div class="rm-attr">地図 国土地理院</div>
+      </div>
+      <div class="radar-foot" id="rmFoot"></div>
+    </section>
     <div id="banner" class="banner" hidden></div>
     <div id="list" class="list" aria-live="polite"></div>
     <div id="empty" class="empty" hidden></div>
@@ -320,6 +385,7 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
 </div>
 
 <div class="overlay" id="overlay"></div>
+<div class="radar-shade" id="rmShade"></div>
 
 <section class="sheet" id="detailSheet" aria-hidden="true" aria-label="地点の天気詳細" role="dialog">
   <div class="grab"></div>
@@ -383,7 +449,7 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
 (function(){
 'use strict';
 
-var APP_VERSION = '1.1.0';
+var APP_VERSION = '1.2.0';
 var STORE_KEY = 'my_weather_v1';
 var CACHE_KEY = 'my_weather_cache_v1';
 var API = 'https://api.open-meteo.com/v1/forecast';
@@ -721,7 +787,7 @@ function render(){
   document.getElementById('cntLife').textContent = state.places.filter(function(p){return p.cat==='life';}).length;
   document.getElementById('cntWork').textContent = state.places.filter(function(p){return p.cat==='work';}).length;
 
-  Array.prototype.forEach.call(document.querySelectorAll('.pill'), function(el){
+  Array.prototype.forEach.call(document.querySelectorAll('.pill[data-filter]'), function(el){
     el.setAttribute('aria-selected', el.getAttribute('data-filter') === state.filter ? 'true' : 'false');
   });
 
@@ -757,6 +823,8 @@ function render(){
   }else{
     b.hidden = true; b.innerHTML = '';
   }
+
+  renderPins();
 }
 
 function setRefreshing(on){
@@ -1248,11 +1316,661 @@ function syncAddCat(){
   });
 }
 
+/* ---------- レーダー（雨雲・風速・台風／気圧） ---------- */
+var RM_N1 = 'https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json';
+var RM_N2 = 'https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json';
+var RM_TYC = 'https://www.jma.go.jp/bosai/typhoon/data/targetTc.json';
+var RM_TYURL = 'https://www.jma.go.jp/bosai/typhoon/';
+
+/* 関西全域（自宅〜大阪〜関空〜和歌山〜京都）が入る初期表示 */
+var RV = { lat: 34.58, lon: 135.42, z: 8.15 };
+var RZ = {
+  mode: 'rain', focus: false,
+  frames: [], fi: 0, timer: null, play: true,
+  field: null, fieldBusy: false, fieldTimer: null,
+  sampleN: 8, sampleM: 7
+};
+var mapW = 366, mapH = 232;
+
+function wX(lon, z){ return (lon + 180) / 360 * 256 * Math.pow(2, z); }
+function wY(lat, z){
+  var s = Math.sin(lat * Math.PI / 180);
+  return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * Math.pow(2, z);
+}
+function uLon(x, z){ return x / (256 * Math.pow(2, z)) * 360 - 180; }
+function uLat(y, z){
+  var n = Math.PI - 2 * Math.PI * y / (256 * Math.pow(2, z));
+  return Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))) * 180 / Math.PI;
+}
+function toScreen(lat, lon){
+  var z = RV.z;
+  return { x: wX(lon, z) - wX(RV.lon, z) + mapW / 2, y: wY(lat, z) - wY(RV.lat, z) + mapH / 2 };
+}
+function fromScreen(x, y){
+  var z = RV.z;
+  return { lon: uLon(wX(RV.lon, z) + x - mapW / 2, z), lat: uLat(wY(RV.lat, z) + y - mapH / 2, z) };
+}
+function clampView(){
+  RV.lat = Math.max(31, Math.min(38.6, RV.lat));
+  RV.lon = Math.max(131.8, Math.min(139.8, RV.lon));
+  RV.z = Math.max(6, Math.min(11, RV.z));
+}
+function panBy(dx, dy){
+  var z = RV.z;
+  RV.lon = uLon(wX(RV.lon, z) - dx, z);
+  RV.lat = uLat(wY(RV.lat, z) - dy, z);
+  clampView();
+}
+function zoomAtTo(z, cx, cy){
+  z = Math.max(6, Math.min(11, z));
+  var before = fromScreen(cx, cy);
+  RV.z = z;
+  var after = fromScreen(cx, cy);
+  RV.lat += before.lat - after.lat;
+  RV.lon += before.lon - after.lon;
+  clampView();
+}
+function viewBounds(){
+  var nw = fromScreen(0, 0), se = fromScreen(mapW, mapH);
+  return { n: nw.lat, s: se.lat, w: nw.lon, e: se.lon };
+}
+
+/* タイルを敷く（既存 img は使い回し、範囲外は捨てる） */
+function syncTiles(el, urlFor){
+  if(!el) return;
+  var zt = Math.round(RV.z);
+  zt = Math.max(6, Math.min(11, zt));
+  var scale = Math.pow(2, RV.z - zt);
+  var n = Math.pow(2, zt);
+  var cx = wX(RV.lon, zt), cy = wY(RV.lat, zt);
+  var hw = mapW / 2 / scale, hh = mapH / 2 / scale;
+  var x0 = Math.floor((cx - hw) / 256), x1 = Math.floor((cx + hw) / 256);
+  var y0 = Math.max(0, Math.floor((cy - hh) / 256)), y1 = Math.min(n - 1, Math.floor((cy + hh) / 256));
+  var keep = {}, imgs = el._imgs || (el._imgs = {}), key, img, u, px, py, x, y;
+  for(x = x0; x <= x1; x++){
+    for(y = y0; y <= y1; y++){
+      key = zt + '/' + x + '/' + y;
+      keep[key] = 1;
+      img = imgs[key];
+      if(!img){
+        img = document.createElement('img');
+        img.alt = ''; img.setAttribute('draggable', 'false');
+        el.appendChild(img); imgs[key] = img;
+      }
+      u = urlFor(x, y, zt);
+      if(u && img.getAttribute('data-u') !== u){ img.setAttribute('data-u', u); img.src = u; }
+      px = (x * 256 - cx) * scale + mapW / 2;
+      py = (y * 256 - cy) * scale + mapH / 2;
+      img.style.width = img.style.height = (256 * scale + 0.7) + 'px';
+      img.style.transform = 'translate3d(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px,0)';
+    }
+  }
+  for(key in imgs){
+    if(!keep[key]){ if(imgs[key].parentNode) imgs[key].parentNode.removeChild(imgs[key]); delete imgs[key]; }
+  }
+}
+
+function baseURL(x, y, z){ return 'https://cyberjapandata.gsi.go.jp/xyz/pale/' + z + '/' + x + '/' + y + '.png'; }
+function rainURL(x, y, z){
+  var f = RZ.frames[RZ.fi];
+  if(!f || !f.base || !f.valid) return '';
+  return 'https://www.jma.go.jp/bosai/jmatile/data/nowc/' + f.base + '/none/' + f.valid + '/surf/hrpns/' + z + '/' + x + '/' + y + '.png';
+}
+
+/* --- 雨雲のコマ（気象庁ナウキャスト：過去と予報の時刻一覧） --- */
+function jmaStamp(ms){
+  var d = new Date(ms);
+  return '' + d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) +
+    pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds());
+}
+function parseJma(s){
+  s = String(s == null ? '' : s);
+  if(s.length < 14) return NaN;
+  return Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8), +s.slice(8, 10), +s.slice(10, 12), +s.slice(12, 14));
+}
+function jstHM(ms){
+  var d = new Date(ms + 9 * 3600 * 1000);
+  return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes());
+}
+function fallbackFrames(){
+  var step = 10 * 60 * 1000;
+  var base = Math.floor(Date.now() / step) * step - 10 * 60 * 1000;
+  var out = [];
+  for(var k = -3; k <= 3; k++){
+    var s = jmaStamp(base + k * step);
+    out.push({ base: s, valid: s, t: base + k * step });
+  }
+  return out;
+}
+function loadFrames(){
+  function one(u){
+    return fetch(u, { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+  }
+  return Promise.all([one(RM_N1), one(RM_N2)]).then(function(res){
+    var list = [], seen = {};
+    [res[0], res[1]].forEach(function(arr){
+      if(!arr || !arr.length || !arr[0] || !arr[0].basetime) return;
+      arr.forEach(function(e){
+        if(!e || !e.basetime || !e.validtime) return;
+        if(seen[e.validtime]) return;
+        var t = parseJma(e.validtime);
+        if(isNaN(t)) return;
+        seen[e.validtime] = 1;
+        list.push({ base: e.basetime, valid: e.validtime, t: t });
+      });
+    });
+    list.sort(function(a, b){ return a.t - b.t; });
+    var now = Date.now();
+    var near = list.filter(function(f){ return f.t >= now - 70 * 60 * 1000 && f.t <= now + 70 * 60 * 1000; });
+    var thin = [], last = null;
+    near.forEach(function(f){
+      if(last === null || Math.abs(f.t - last) >= 9 * 60 * 1000){ thin.push(f); last = f.t; }
+    });
+    return thin;
+  }).catch(function(){ return []; });
+}
+function nearestFrame(list){
+  var now = Date.now(), best = 0, gap = Infinity;
+  for(var i = 0; i < list.length; i++){
+    var d = Math.abs(list[i].t - now);
+    if(d < gap){ gap = d; best = i; }
+  }
+  return best;
+}
+function refreshFrames(){
+  var keepValid = RZ.frames[RZ.fi] ? RZ.frames[RZ.fi].valid : null;
+  loadFrames().then(function(list){
+    if(!list.length) list = fallbackFrames();
+    RZ.frames = list;
+    RZ.fi = nearestFrame(list);
+    if(keepValid){
+      for(var i = 0; i < list.length; i++){ if(list[i].valid === keepValid){ RZ.fi = i; break; } }
+    }
+    renderRain();
+  });
+}
+function updateTag(){
+  var el = document.getElementById('rmTag');
+  if(!el) return;
+  var f = RZ.frames[RZ.fi];
+  if(!f || RZ.mode !== 'rain'){ el.textContent = '—'; el.hidden = RZ.mode !== 'rain'; return; }
+  el.hidden = false;
+  var diff = Math.round((f.t - Date.now()) / 60000);
+  el.textContent = jstHM(f.t) + (diff === 0 ? ' 現在' : (diff < 0 ? ' ' + Math.abs(diff) + '分前' : ' ' + diff + '分後'));
+}
+function renderRain(){
+  var el = document.getElementById('rmRain');
+  if(!el) return;
+  el.hidden = RZ.mode !== 'rain';
+  if(RZ.mode !== 'rain') return;
+  syncTiles(el, rainURL);
+  updateTag();
+}
+function tickRain(){
+  if(!RZ.play || RZ.mode !== 'rain' || RZ.frames.length < 2) return;
+  RZ.fi = (RZ.fi + 1) % RZ.frames.length;
+  renderRain();
+}
+function startPlay(){
+  stopPlay();
+  RZ.timer = setInterval(tickRain, 1000);
+}
+function stopPlay(){ if(RZ.timer){ clearInterval(RZ.timer); RZ.timer = null; } }
+
+/* --- 風・気圧の面データ（Open-Meteo の格子点） --- */
+function fieldURL(box){
+  var lats = [], lons = [], i, j, lat, lon;
+  for(j = 0; j < RZ.sampleM; j++){
+    lat = box.n - (box.n - box.s) * j / (RZ.sampleM - 1);
+    for(i = 0; i < RZ.sampleN; i++){
+      lon = box.w + (box.e - box.w) * i / (RZ.sampleN - 1);
+      lats.push(lat.toFixed(3)); lons.push(lon.toFixed(3));
+    }
+  }
+  return API + '?latitude=' + lats.join(',') + '&longitude=' + lons.join(',') +
+    '&current=wind_speed_10m,wind_direction_10m,pressure_msl&wind_speed_unit=ms&timezone=Asia%2FTokyo';
+}
+function fieldNeed(){
+  if(!RZ.field) return true;
+  var b = viewBounds(), s = RZ.field.box, m = 0.03;
+  return b.n > s.n + m || b.s < s.s - m || b.w < s.w - m || b.e > s.e + m;
+}
+function ensureField(force){
+  if(RZ.mode === 'rain') return;
+  if(!force && !fieldNeed()) return;
+  if(RZ.fieldBusy) return;
+  var b = viewBounds();
+  var mx = (b.e - b.w) * 0.10, my = (b.n - b.s) * 0.10;
+  var box = { n: b.n + my, s: b.s - my, w: b.w - mx, e: b.e + mx };
+  RZ.fieldBusy = true;
+  fetch(fieldURL(box), { cache: 'no-store' }).then(function(r){
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(j){
+    var arr = Array.isArray(j) ? j : [j];
+    var f = { lat: [], lon: [], sp: [], dir: [], msl: [], box: box, nx: RZ.sampleN, ny: RZ.sampleM, at: Date.now() };
+    arr.forEach(function(o){
+      var c = (o && o.current) ? o.current : {};
+      f.lat.push(o.latitude); f.lon.push(o.longitude);
+      f.sp.push(c.wind_speed_10m == null ? null : c.wind_speed_10m);
+      f.dir.push(c.wind_direction_10m == null ? null : c.wind_direction_10m);
+      f.msl.push(c.pressure_msl == null ? null : c.pressure_msl);
+    });
+    var any = false;
+    f.sp.forEach(function(v){ if(v != null) any = true; });
+    if(!any) throw new Error('no field');
+    RZ.field = f;
+  }).catch(function(){
+    /* 失敗時は前回の値を残す（無ければ「取得できません」表示） */
+  }).then(function(){
+    RZ.fieldBusy = false;
+    drawOverlay();
+    updateFoot();
+    if(fieldNeed()) scheduleField();
+  });
+}
+function scheduleField(){
+  if(RZ.mode === 'rain') return;
+  clearTimeout(RZ.fieldTimer);
+  RZ.fieldTimer = setTimeout(function(){ ensureField(); }, 450);
+}
+
+function windColor(v){
+  if(v >= 12) return 'rgba(176,32,24,.97)';
+  if(v >= 8) return 'rgba(214,86,32,.97)';
+  if(v >= 5) return 'rgba(232,152,40,.97)';
+  if(v >= 2) return 'rgba(45,120,190,.97)';
+  return 'rgba(58,100,140,.95)';
+}
+var P_STOPS = [
+  [975, [106, 63, 181]], [992, [47, 111, 208]], [1006, [87, 176, 232]],
+  [1014, [214, 238, 226]], [1022, [255, 207, 107]], [1032, [240, 138, 58]], [1044, [214, 72, 52]]
+];
+function rampColor(t){
+  t = Math.max(0, Math.min(1, t));
+  var n = P_STOPS.length - 1;
+  var f = t * n, i = Math.min(n - 1, Math.floor(f)), k = f - i;
+  var a = P_STOPS[i][1], b = P_STOPS[i + 1][1];
+  return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * k) + ',' +
+    Math.round(a[1] + (b[1] - a[1]) * k) + ',' + Math.round(a[2] + (b[2] - a[2]) * k) + ')';
+}
+function pColor(v){
+  if(v == null) return 'rgba(255,255,255,0)';
+  var s = P_STOPS, last = s.length - 1;
+  if(v <= s[0][0]) return rampColor(0);
+  if(v >= s[last][0]) return rampColor(1);
+  for(var i = 0; i < last; i++){
+    if(v >= s[i][0] && v <= s[i + 1][0]){
+      return rampColor((i + (v - s[i][0]) / (s[i + 1][0] - s[i][0])) / last);
+    }
+  }
+  return rampColor(0.5);
+}
+function drawArrows(ctx, alpha){
+  var f = RZ.field;
+  if(!f) return;
+  ctx.save();
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ctx.lineCap = 'round';
+  for(var k = 0; k < f.lat.length; k++){
+    var sp = f.sp[k], dir = f.dir[k];
+    if(sp == null || dir == null) continue;
+    var p = toScreen(f.lat[k], f.lon[k]);
+    if(p.x < -40 || p.x > mapW + 40 || p.y < -40 || p.y > mapH + 40) continue;
+    var len = 14 + Math.min(24, sp * 1.8);
+    var a = (dir + 180) * Math.PI / 180;
+    var dx = Math.sin(a) * len / 2, dy = -Math.cos(a) * len / 2;
+    var hx = p.x + dx, hy = p.y + dy, h = Math.max(5, len * 0.3);
+    var lw = sp >= 10 ? 2.8 : (sp >= 7 ? 2.3 : 1.9);
+    ctx.beginPath();
+    ctx.moveTo(p.x - dx, p.y - dy);
+    ctx.lineTo(hx, hy);
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx - h * Math.sin(a - 0.5), hy + h * Math.cos(a - 0.5));
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx - h * Math.sin(a + 0.5), hy + h * Math.cos(a + 0.5));
+    /* 地図の上でも見えるように白い縁取りを先に */
+    ctx.strokeStyle = 'rgba(255,255,255,.82)';
+    ctx.lineWidth = lw + 2.2;
+    ctx.stroke();
+    ctx.strokeStyle = windColor(sp);
+    ctx.lineWidth = lw;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawPressureField(ctx){
+  var f = RZ.field;
+  if(!f || !f.msl.length) return;
+  var n = f.nx, m = f.ny;
+  var lo = null, hi = null;
+  f.msl.forEach(function(v){
+    if(v == null) return;
+    if(lo === null || v < lo) lo = v;
+    if(hi === null || v > hi) hi = v;
+  });
+  /* 平穏な日は差が小さいので、色だけ拡張して勾配を見せる（数字は実測値） */
+  var range = (lo == null || hi == null) ? 0 : (hi - lo);
+  var gain = (range > 0 && range < 8) ? Math.min(6, 8 / range) : 1;
+  var mid = (lo == null) ? 1013 : (lo + hi) / 2;
+  f.gain = gain;
+  var tmp = document.createElement('canvas');
+  tmp.width = n; tmp.height = m;
+  var tc = ctx2d(tmp);
+  if(!tc) return;
+  for(var k = 0; k < f.msl.length; k++){
+    var v = f.msl[k];
+    tc.fillStyle = v == null ? 'rgba(255,255,255,0)' :
+      (gain > 1.2 ? rampColor((v - lo) / Math.max(0.1, hi - lo)) : pColor(v));
+    tc.fillRect(k % n, Math.floor(k / n), 1, 1);
+  }
+  var p0 = toScreen(f.lat[0], f.lon[0]);
+  var p1 = toScreen(f.lat[n - 1], f.lon[n - 1]);
+  var p2 = toScreen(f.lat[(m - 1) * n], f.lon[(m - 1) * n]);
+  var x = p0.x - 8, y = p0.y - 8, w = (p1.x - p0.x) + 16, h = (p2.y - p0.y) + 16;
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(tmp, x, y, w, h);
+  ctx.restore();
+}
+function drawPressureLabels(ctx){
+  var f = RZ.field;
+  if(!f) return;
+  ctx.save();
+  ctx.font = '700 9px system-ui,-apple-system,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 2.6; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.fillStyle = '#1b3348';
+  for(var k = 0; k < f.msl.length; k++){
+    if(f.msl[k] == null) continue;
+    var i = k % f.nx, j = Math.floor(k / f.nx);
+    if(i % 2 || j % 2) continue;
+    var p = toScreen(f.lat[k], f.lon[k]);
+    if(p.x < 12 || p.x > mapW - 12 || p.y < 10 || p.y > mapH - 10) continue;
+    var t = String(Math.round(f.msl[k]));
+    ctx.strokeText(t, p.x, p.y);
+    ctx.fillText(t, p.x, p.y);
+  }
+  ctx.restore();
+}
+function ctx2d(cv){
+  if(!cv || typeof cv.getContext !== 'function') return null;
+  try{ return cv.getContext('2d'); }catch(e){ return null; }
+}
+function drawOverlay(){
+  var cv = document.getElementById('rmCanvas');
+  var ctx = ctx2d(cv);
+  if(!ctx) return;
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
+  var cw = Math.max(1, Math.round(mapW * dpr)), ch = Math.max(1, Math.round(mapH * dpr));
+  if(cv.width !== cw || cv.height !== ch){
+    cv.width = cw; cv.height = ch;
+    cv.style.width = mapW + 'px'; cv.style.height = mapH + 'px';
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, mapW, mapH);
+  if(RZ.mode === 'wind'){
+    drawArrows(ctx, 1);
+    if(!RZ.field) drawHint(ctx, '風のデータを読み込み中…');
+  }else if(RZ.mode === 'pressure'){
+    drawPressureField(ctx);
+    drawArrows(ctx, 0.8);
+    drawPressureLabels(ctx);
+    if(!RZ.field) drawHint(ctx, '気圧のデータを読み込み中…');
+  }
+}
+function drawHint(ctx, text){
+  ctx.save();
+  ctx.font = '700 11px system-ui,-apple-system,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  var w = ctx.measureText(text).width + 20;
+  ctx.fillStyle = 'rgba(255,255,255,.88)';
+  ctx.beginPath();
+  if(ctx.roundRect){ ctx.roundRect(mapW / 2 - w / 2, mapH / 2 - 13, w, 26, 8); }
+  else { ctx.rect(mapW / 2 - w / 2, mapH / 2 - 13, w, 26); }
+  ctx.fill();
+  ctx.fillStyle = '#42566b';
+  ctx.fillText(text, mapW / 2, mapH / 2);
+  ctx.restore();
+}
+
+/* --- 地点ピン --- */
+function shortName(n){ return String(n == null ? '' : n).replace(/（[^）]*）/g, ''); }
+function renderPins(){
+  var el = document.getElementById('rmPins');
+  if(!el) return;
+  var html = '', boxes = [];
+  function free(b){
+    for(var i = 0; i < boxes.length; i++){
+      var o = boxes[i];
+      if(b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y) return false;
+    }
+    return true;
+  }
+  state.places.forEach(function(p){
+    var pt = toScreen(p.lat, p.lon);
+    if(pt.x < -30 || pt.x > mapW + 30 || pt.y < -30 || pt.y > mapH + 30) return;
+    var label = shortName(p.name);
+    var w = label.length * 5.6 + 8, h = 12;
+    var below = { x: pt.x - w / 2, y: pt.y + 11, w: w, h: h };
+    var above = { x: pt.x - w / 2, y: pt.y - 11 - h, w: w, h: h };
+    var pos = null;
+    if(free(below)){ pos = below; }
+    else if(free(above)){ pos = above; }
+    else if(p.home){ pos = below; }
+    if(pos) boxes.push(pos);
+    html += '<button class="rm-pin' + (p.home ? ' home' : '') + '" data-id="' + esc(p.id) + '" ' +
+      'style="left:' + pt.x.toFixed(1) + 'px;top:' + pt.y.toFixed(1) + 'px" aria-label="' + esc(p.name) + ' の詳細">' +
+      '<span class="d">' + esc(p.emoji) + '</span>' +
+      (pos ? '<span class="l" style="top:' + (pos.y - pt.y) + 'px">' + esc(label) + '</span>' : '') +
+      '</button>';
+  });
+  el.innerHTML = html;
+}
+
+/* --- フッター（凡例・再生・台風リンク） --- */
+function updateFoot(){
+  var el = document.getElementById('rmFoot');
+  if(!el) return;
+  if(RZ.mode === 'rain'){
+    el.innerHTML = '<button class="play" id="rmPlay" aria-label="' + (RZ.play ? 'アニメーションを止める' : 'アニメーションを再生') + '">' +
+        (RZ.play ? '❚❚' : '▶') + '</button>' +
+      '<div class="bar"><span class="radar-scale" style="background:linear-gradient(90deg,#cfe9ff,#5aa9e6,#2f5fb0,#f3d34a,#f08a3a,#c0392b)"></span>' +
+      '<span class="radar-note"><b>雨雲</b> 気象庁ナウキャスト</span></div>';
+    var pb = document.getElementById('rmPlay');
+    if(pb) pb.onclick = function(){ setPlay(!RZ.play); };
+  }else if(RZ.mode === 'wind'){
+    var mx = null;
+    if(RZ.field) RZ.field.sp.forEach(function(v){ if(v != null && (mx === null || v > mx)) mx = v; });
+    el.innerHTML = '<div class="bar"><span class="radar-scale" style="background:linear-gradient(90deg,#9fc4dd,#3f8fd0,#f0a53a,#e0622b,#b02018)"></span>' +
+      '<span class="radar-note">矢印=風向／色=風速 ' + (mx == null ? '—' : '<b>最大 ' + (Math.round(mx * 10) / 10) + 'm/s</b>') + '</span></div>';
+  }else{
+    var lo = null, hi = null;
+    if(RZ.field) RZ.field.msl.forEach(function(v){
+      if(v == null) return;
+      if(lo === null || v < lo) lo = v;
+      if(hi === null || v > hi) hi = v;
+    });
+    el.innerHTML = '<div class="bar"><span class="radar-scale" style="background:linear-gradient(90deg,#6a3fb5,#2f6fd0,#57b0e8,#d6eee2,#ffcf6b,#f08a3a,#d64834)"></span>' +
+      '<span class="radar-note">気圧 ' + (lo == null ? '—' : Math.round(lo) + '〜' + Math.round(hi) + 'hPa') +
+      (RZ.field && RZ.field.gain > 1.2 ? '（色は相対）' : '') + '</span></div>' +
+      '<a class="radar-link" href="' + RM_TYURL + '" target="_blank" rel="noopener">台風情報↗</a>';
+  }
+}
+function setPlay(on){
+  RZ.play = !!on;
+  if(RZ.play) startPlay(); else stopPlay();
+  updateFoot();
+}
+
+/* --- 表示モード・拡大 --- */
+function setMode(m){
+  RZ.mode = (m === 'wind' || m === 'pressure') ? m : 'rain';
+  var wrap = document.getElementById('rmModes');
+  if(wrap){
+    Array.prototype.forEach.call(wrap.querySelectorAll('button[data-mode]'), function(b){
+      b.setAttribute('aria-selected', b.getAttribute('data-mode') === RZ.mode ? 'true' : 'false');
+    });
+  }
+  var rain = document.getElementById('rmRain');
+  if(rain) rain.hidden = RZ.mode !== 'rain';
+  updateFoot();
+  if(RZ.mode === 'rain') renderRain();
+  else { drawOverlay(); ensureField(true); }
+  updateTag();
+}
+function measure(){
+  var el = document.getElementById('radarMap');
+  if(!el) return;
+  mapW = el.clientWidth || 366;
+  mapH = el.clientHeight || 232;
+}
+function renderAll(){
+  measure();
+  syncTiles(document.getElementById('rmBase'), baseURL);
+  if(RZ.mode === 'rain') syncTiles(document.getElementById('rmRain'), rainURL);
+  renderPins();
+  drawOverlay();
+  scheduleField();
+}
+function setFocus(on){
+  var p = document.getElementById('radarPanel');
+  if(!p) return;
+  RZ.focus = !!on;
+  p.classList.toggle('focus', RZ.focus);
+  var sh = document.getElementById('rmShade');
+  if(sh) sh.classList.toggle('open', RZ.focus);
+  document.body.classList.toggle('radar-open', RZ.focus);
+  var b = document.getElementById('rmFocus');
+  if(b){
+    b.textContent = RZ.focus ? '⤡' : '⤢';
+    b.setAttribute('aria-label', RZ.focus ? 'レーダーを縮小' : 'レーダーを拡大表示');
+  }
+  var run = function(){ measure(); renderAll(); };
+  if(window.requestAnimationFrame) window.requestAnimationFrame(run);
+  setTimeout(run, 260);
+  if(RZ.focus) ensureField(false);
+}
+
+/* --- 地図の操作（ドラッグ・ピンチ・ホイール） --- */
+function initMapInput(){
+  var el = document.getElementById('radarMap');
+  if(!el) return;
+  var pts = {}, drag = false, lastX = 0, lastY = 0, pinch = null;
+  function rect(){ return el.getBoundingClientRect(); }
+  function dist2(a, b){ var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy); }
+  function ids(){ return Object.keys(pts); }
+  function mid2(a, b){ return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+  el.addEventListener('pointerdown', function(e){
+    if(e.target && e.target.closest && e.target.closest('.rm-pin')) return;
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var k = ids();
+    if(k.length === 1){ drag = true; lastX = e.clientX; lastY = e.clientY; }
+    else if(k.length === 2){
+      var a = pts[k[0]], b = pts[k[1]];
+      pinch = { dist: dist2(a, b) || 1, z: RV.z, mid: mid2(a, b) };
+    }
+  });
+  el.addEventListener('pointermove', function(e){
+    if(!pts[e.pointerId]) return;
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var k = ids();
+    if(k.length >= 2 && pinch){
+      var a = pts[k[0]], b = pts[k[1]];
+      var d = dist2(a, b) || 1;
+      var m = mid2(a, b), r = rect();
+      zoomAtTo(pinch.z + Math.log(d / pinch.dist) / Math.LN2, m.x - r.left, m.y - r.top);
+      panBy(m.x - pinch.mid.x, m.y - pinch.mid.y);
+      pinch.mid = m;
+      renderAll();
+      e.preventDefault();
+      return;
+    }
+    if(drag){
+      var dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      panBy(dx, dy);
+      renderAll();
+    }
+  });
+  function up(e){
+    delete pts[e.pointerId];
+    if(ids().length < 2) pinch = null;
+    if(!ids().length) drag = false;
+    else { var k = ids(); lastX = pts[k[0]].x; lastY = pts[k[0]].y; }
+  }
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var r = rect();
+    zoomAtTo(RV.z + (e.deltaY < 0 ? 0.4 : -0.4), e.clientX - r.left, e.clientY - r.top);
+    renderAll();
+  }, { passive: false });
+}
+
+function loadTyphoon(){
+  fetch(RM_TYC, { cache: 'no-store' }).then(function(r){
+    return r.ok ? r.json() : null;
+  }).then(function(j){
+    var n = Array.isArray(j) ? j.length : 0;
+    var el = document.getElementById('rmTy');
+    if(!el) return;
+    if(n){ el.hidden = false; el.textContent = '🌀 台風' + n + '件'; }
+    else { el.hidden = true; el.textContent = ''; }
+  }).catch(function(){});
+}
+
+function initRadar(){
+  measure();
+  var modes = document.getElementById('rmModes');
+  if(modes){
+    modes.addEventListener('click', function(e){
+      var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
+      if(b) setMode(b.getAttribute('data-mode'));
+    });
+  }
+  var fb = document.getElementById('rmFocus');
+  if(fb) fb.addEventListener('click', function(){ setFocus(!RZ.focus); });
+  var sh = document.getElementById('rmShade');
+  if(sh) sh.addEventListener('click', function(){ setFocus(false); });
+  var zi = document.getElementById('rmZin');
+  if(zi) zi.addEventListener('click', function(){ zoomAtTo(RV.z + 0.7, mapW / 2, mapH / 2); renderAll(); });
+  var zo = document.getElementById('rmZout');
+  if(zo) zo.addEventListener('click', function(){ zoomAtTo(RV.z - 0.7, mapW / 2, mapH / 2); renderAll(); });
+  var pins = document.getElementById('rmPins');
+  if(pins){
+    pins.addEventListener('click', function(e){
+      var b = e.target.closest ? e.target.closest('.rm-pin') : null;
+      if(b) openDetail(b.getAttribute('data-id'));
+    });
+  }
+  var pill = document.getElementById('pillRadar');
+  if(pill) pill.addEventListener('click', function(){ setFocus(true); });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && RZ.focus) setFocus(false);
+  });
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) stopPlay();
+    else if(RZ.play) startPlay();
+  });
+  window.addEventListener('resize', function(){ renderAll(); });
+  initMapInput();
+  updateFoot();
+  renderAll();
+  refreshFrames();
+  loadTyphoon();
+  startPlay();
+  setInterval(function(){ if(RZ.mode === 'rain') refreshFrames(); }, 5 * 60 * 1000);
+}
+
 /* ---------- 起動 ---------- */
 loadCache();
 bind();
 render();
 fetchAll();
+initRadar();
 
 /* テスト用フック */
 window.__mw = {
@@ -1276,7 +1994,42 @@ window.__mw = {
   norm: norm,
   saveState: saveState,
   getLastUpdated: function(){ return lastUpdated; },
-  setFilter: function(f){ state.filter = f; render(); }
+  setFilter: function(f){ state.filter = f; render(); },
+  radar: {
+    mode: function(){ return RZ.mode; },
+    setMode: setMode,
+    setFocus: setFocus,
+    isFocus: function(){ return RZ.focus; },
+    view: function(){ return { lat: RV.lat, lon: RV.lon, z: RV.z }; },
+    setView: function(lat, lon, z){ RV.lat = lat; RV.lon = lon; RV.z = z; clampView(); renderAll(); },
+    frames: function(){ return RZ.frames.slice(); },
+    frameIndex: function(){ return RZ.fi; },
+    setFrame: function(i){ if(i >= 0 && i < RZ.frames.length){ RZ.fi = i; renderRain(); } },
+    play: function(on){ setPlay(on); },
+    isPlaying: function(){ return RZ.play; },
+    refreshFrames: refreshFrames,
+    field: function(){ return RZ.field; },
+    setPoint: function(lat, lon, z){ RV.lat = lat; RV.lon = lon; RV.z = z; renderAll(); ensureField(true); },
+    rainTiles: function(){
+      var imgs = document.getElementById('rmRain').querySelectorAll('img');
+      return { total: imgs.length, loaded: Array.prototype.filter.call(imgs, function(i){ return i.complete && i.naturalWidth > 0; }).length };
+    },
+    baseTiles: function(){
+      var imgs = document.getElementById('rmBase').querySelectorAll('img');
+      return { total: imgs.length, loaded: Array.prototype.filter.call(imgs, function(i){ return i.complete && i.naturalWidth > 0; }).length };
+    },
+    pinCount: function(){ return document.querySelectorAll('#rmPins .rm-pin').length; },
+    canvasInk: function(){
+      var cv = document.getElementById('rmCanvas');
+      var ctx = ctx2d(cv);
+      if(!ctx) return -1;
+      var d = ctx.getImageData(0, 0, cv.width, cv.height).data, n = 0;
+      for(var i = 3; i < d.length; i += 4){ if(d[i] > 8) n++; }
+      return n;
+    },
+    tag: function(){ return document.getElementById('rmTag').textContent; },
+    measure: measure
+  }
 };
 })();
 </script>

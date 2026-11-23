@@ -80,4 +80,25 @@ function buildFixture(count) {
   return out;
 }
 
-module.exports = { buildFixture, BASE_DATE, CURRENT_HOUR };
+/* レーダーの風・気圧面（格子点）用。latitude/longitude を格子状に返す */
+function buildField(count) {
+  const cols = 8;
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const j = Math.floor(i / cols), k = i % cols;
+    out.push({
+      latitude: +(35.3 - j * 0.22).toFixed(3),
+      longitude: +(134.3 + k * 0.36).toFixed(3),
+      timezone: 'Asia/Tokyo',
+      current: {
+        time: BASE_DATE + 'T' + CURRENT_HOUR,
+        wind_speed_10m: +(1.5 + (i % 9) * 1.4).toFixed(1),
+        wind_direction_10m: (i * 27) % 360,
+        pressure_msl: +(1002 + (i % 11) * 2.6).toFixed(1)
+      }
+    });
+  }
+  return out;
+}
+
+module.exports = { buildFixture, buildField, BASE_DATE, CURRENT_HOUR };
