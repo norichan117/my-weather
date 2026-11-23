@@ -15,6 +15,19 @@ function eq(a, b, label) { ok(JSON.stringify(a) === JSON.stringify(b), label, { 
 
 const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 
+/* v1（公開初版）の既定9地点。端末に残っている古い保存データの再現用 */
+const OLD_PLACES = [
+  { id: 'home', name: '自宅（花山）', sub: '神戸市北区 花山東町', emoji: '🏠', cat: 'life', lat: 34.7639, lon: 135.1886, home: true },
+  { id: 'tennoji', name: '天王寺（勤務先）', sub: '大阪市天王寺区', emoji: '🏢', cat: 'life', lat: 34.6473, lon: 135.5139 },
+  { id: 'nishikujo', name: '西九条（プール）', sub: '大阪市此花区', emoji: '🏊', cat: 'life', lat: 34.6828, lon: 135.4668 },
+  { id: 'osaka', name: '大阪・環状線', sub: '大阪市北区', emoji: '🏙️', cat: 'work', lat: 34.7025, lon: 135.4959 },
+  { id: 'otori', name: '鳳（阪和線）', sub: '堺市西区', emoji: '🚉', cat: 'work', lat: 34.5342, lon: 135.4488 },
+  { id: 'kix', name: '関西空港（連絡橋）', sub: '泉佐野市 関空連絡橋', emoji: '✈️', cat: 'work', lat: 34.4347, lon: 135.2440 },
+  { id: 'wakayama', name: '和歌山（阪和線）', sub: '和歌山市', emoji: '🍊', cat: 'work', lat: 34.2323, lon: 135.1916 },
+  { id: 'shirahama', name: '白浜（きのくに線）', sub: '西牟婁郡 白浜町', emoji: '🐼', cat: 'work', lat: 33.6811, lon: 135.3886 },
+  { id: 'kyoto', name: '京都（JR京都線）', sub: '京都市下京区', emoji: '⛩️', cat: 'work', lat: 34.9858, lon: 135.7588 }
+];
+
 function newApp(opts) {
   const o = opts || {};
   const calls = [];
@@ -24,6 +37,7 @@ function newApp(opts) {
     pretendToBeVisual: true,
     beforeParse(window) {
       window.confirm = () => true;
+      if (o.seed) window.localStorage.setItem('my_weather_v1', typeof o.seed === 'string' ? o.seed : JSON.stringify(o.seed));
       window.fetch = function (url) {
         calls.push(String(url));
         if (o.fail) return Promise.reject(new Error('offline'));
@@ -31,7 +45,7 @@ function newApp(opts) {
         if (String(url).indexOf('/search') >= 0) return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) });
         // latitude の数を数えて地点数とする
         const m = String(url).match(/latitude=([^&]+)/);
-        const n = m ? m[1].split(',').length : 9;
+        const n = m ? m[1].split(',').length : 8;
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(buildFixture(n)) });
       };
     }
@@ -47,10 +61,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(120);
   const mw = window.__mw;
   ok(!!mw, '__mw フックがある');
-  eq(mw.state.places.length, 9, '初期地点は9か所');
-  eq(doc.querySelectorAll('.list .card').length, 9, 'カードが9枚描画される');
+  eq(mw.state.places.length, 8, '初期地点は8か所');
+  eq(doc.querySelectorAll('.list .card').length, 8, 'カードが8枚描画される');
   eq([...doc.querySelectorAll('.pill')].map(p => p.textContent.replace(/\s/g, '')),
-     ['すべて9', '生活3', '乗務範囲6'], 'ピルの件数（すべて9/生活3/乗務範囲6）');
+     ['すべて8', '生活3', '乗務範囲5'], 'ピルの件数（すべて8/生活3/乗務範囲5）');
   ok(doc.getElementById('updated').textContent.indexOf('更新') >= 0, '最終更新時刻が出る', doc.getElementById('updated').textContent);
   ok(calls[0].indexOf('wind_speed_unit=ms') > 0, 'APIに wind_speed_unit=ms を指定');
   ok(calls[0].indexOf('timezone=auto') > 0, 'APIに timezone=auto を指定');
@@ -108,18 +122,18 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   eq(doc.querySelectorAll('.list .card').length, 3, '生活＝3件');
   eq(doc.querySelector('.pill[data-filter="life"]').getAttribute('aria-selected'), 'true', '選択状態が入る');
   doc.querySelector('.pill[data-filter="work"]').dispatchEvent(new window.Event('click', { bubbles: true }));
-  eq(doc.querySelectorAll('.list .card').length, 6, '乗務範囲＝6件');
+  eq(doc.querySelectorAll('.list .card').length, 5, '乗務範囲＝5件');
   doc.querySelector('.pill[data-filter="all"]').dispatchEvent(new window.Event('click', { bubbles: true }));
-  eq(doc.querySelectorAll('.list .card').length, 9, 'すべて＝9件');
+  eq(doc.querySelectorAll('.list .card').length, 8, 'すべて＝8件');
 
   console.log('6. 地点の追加');
   const added = mw.addPlace({ name: '三ノ宮', sub: '神戸市中央区', lat: 34.6946, lon: 135.1955, emoji: '🚉' });
   ok(!!added, '地点を追加できる');
-  eq(mw.state.places.length, 10, '10か所になる');
-  eq(mw.state.places[9].cat, 'life', '追加先は生活（既定）');
+  eq(mw.state.places.length, 9, '9か所になる');
+  eq(mw.state.places[8].cat, 'life', '追加先は生活（既定）');
   const stored = JSON.parse(window.localStorage.getItem('my_weather_v1'));
-  eq(stored.places.length, 10, 'localStorageに保存される');
-  eq(stored.places[9].name, '三ノ宮', '保存内容に名前が入る');
+  eq(stored.places.length, 9, 'localStorageに保存される');
+  eq(stored.places[8].name, '三ノ宮', '保存内容に名前が入る');
   ok(!mw.addPlace({ name: '三ノ宮', sub: '', lat: 34.6946, lon: 135.1955 }), '同じ地点は二重追加しない');
 
   console.log('7. 並び替え・削除・初期化');
@@ -128,10 +142,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   mw.movePlace('home', -1);
   eq(mw.state.places[0].id, 'home', '元に戻せる');
   mw.removePlace('tennoji');
-  eq(mw.state.places.length, 9, '削除できる');
+  eq(mw.state.places.length, 8, '削除できる');
   ok(!mw.state.places.some(p => p.id === 'tennoji'), '削除した地点が消える');
   mw.state.places = mw.DEFAULT_PLACES.map(p => Object.assign({}, p));
-  eq(mw.state.places.length, 9, '初期地点は9か所のまま（定数）');
+  eq(mw.state.places.length, 8, '初期地点は8か所のまま（定数）');
 
   console.log('8. 通信エラー時');
   const app2 = newApp({ fail: true });
@@ -139,7 +153,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const d2 = app2.doc;
   ok(!d2.getElementById('banner').hidden, 'エラーバナーが出る');
   ok(d2.getElementById('banner').textContent.indexOf('取得できません') >= 0, '取得失敗の文言', d2.getElementById('banner').textContent);
-  eq(d2.querySelectorAll('.list .card').length, 9, 'エラーでも地点は並ぶ');
+  eq(d2.querySelectorAll('.list .card').length, 8, 'エラーでも地点は並ぶ');
   ok(d2.querySelector('.card[data-id="home"] .tmp').textContent.indexOf('—') >= 0, '気温は — 表示');
   ok(d2.getElementById('btnRetry'), '再試行ボタンがある');
 
@@ -157,6 +171,32 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(mw.searchLocal('マニラ').length === 1, '海外都市も検索できる');
   ok(mw.searchLocal('王寺').some(x => x.name === '王寺'), '王寺が引ける');
   ok(mw.LOCAL_DB.length >= 60, '内蔵地点が60件以上', mw.LOCAL_DB.length);
+
+  console.log('11. 旧保存データの引き継ぎ（既定地点 v1→v2）');
+  const app4 = newApp({ seed: { places: OLD_PLACES, addCat: 'life' } });
+  await wait(160);
+  const m4 = app4.window.__mw;
+  eq(m4.state.places.length, 8, '旧9地点は8地点になる');
+  ok(!m4.state.places.some(p => p.id === 'shirahama'), '既定の白浜は消える');
+  eq(m4.state.places[7].id, 'kyoto', '京都が8番目に詰まる');
+  const h4 = m4.state.places.filter(p => p.id === 'home')[0];
+  eq([h4.name, h4.sub], ['自宅（北区）', '神戸市北区'], '自宅の表記がぼける');
+  eq([h4.lat, h4.lon], [34.77, 135.18], '自宅の座標が北区の代表地点にずれる');
+  const st4 = JSON.parse(app4.window.localStorage.getItem('my_weather_v1'));
+  eq(st4.dv, 2, '引き継ぎ版（dv=2）が保存される');
+  eq(st4.places.length, 8, '保存内容も8地点');
+  eq(app4.doc.querySelectorAll('.list .card').length, 8, '画面も8枚');
+
+  const app5 = newApp({ seed: { places: OLD_PLACES.concat([{ id: 'px1', name: '白浜', sub: '西牟婁郡白浜町', emoji: '📍', cat: 'work', lat: 33.68, lon: 135.38, home: false }]), addCat: 'work' } });
+  await wait(160);
+  const m5 = app5.window.__mw;
+  eq(m5.state.places.length, 9, '自分で追加した白浜は残る');
+  ok(m5.state.places.some(p => p.id === 'px1' && p.name === '白浜'), '自分で追加した白浜はそのまま');
+
+  const app6 = newApp({ seed: st4 });
+  await wait(160);
+  eq(app6.window.__mw.state.places.length, 8, '引き継ぎ済みのデータは変わらない（再読込）');
+  eq(app6.window.__mw.state.places[0].name, '自宅（北区）', '再読込しても自宅はぼけたまま');
 
   console.log('\n結果: ' + pass + ' 件成功 / ' + fail + ' 件失敗');
   process.exit(fail ? 1 : 0);

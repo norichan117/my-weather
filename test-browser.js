@@ -54,7 +54,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const res = await page.goto(BASE + '?cb=' + Date.now(), { waitUntil: 'load' });
   await page.waitForTimeout(1200);
   ok(res && res.status() === 200, 'ローカルページが200で開ける', res && res.status());
-  ok(await cards() === 9, 'カード9枚', await cards());
+  ok(await cards() === 8, 'カード8枚', await cards());
   ok(await noHScroll(), '横スクロールなし（390px）');
   const visible = await page.$$eval('.list .card', els => els.filter(c => { const r = c.getBoundingClientRect(); return r.top < 844 && r.bottom < 844; }).length);
   ok(visible >= 5, '1画面に5地点以上がすっぽり入る（実際: ' + visible + '）');
@@ -77,10 +77,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(await page.$eval('.pill[data-filter="life"]', el => el.getAttribute('aria-selected')) === 'true', '選択状態が切り替わる');
   await page.tap('.pill[data-filter="work"]');
   await page.waitForTimeout(250);
-  ok(await cards() === 6, '乗務範囲ピルで6件', await cards());
+  ok(await cards() === 5, '乗務範囲ピルで5件', await cards());
   await page.tap('.pill[data-filter="all"]');
   await page.waitForTimeout(250);
-  ok(await cards() === 9, 'すべてに戻すと9件', await cards());
+  ok(await cards() === 8, 'すべてに戻すと8件', await cards());
 
   console.log('3. 詳細ボトムシート');
   await page.tap('.card[data-id="tennoji"]');
@@ -121,21 +121,21 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await page.screenshot({ path: SHOT + 'mock-05-add.' + TAG + 'png' });
   await page.tap('#results .res');
   await page.waitForTimeout(900);
-  ok(await cards() === 10, '追加すると10枚になる', await cards());
+  ok(await cards() === 9, '追加すると9枚になる', await cards());
   ok((await page.textContent('.list')).indexOf('三ノ宮') >= 0, '一覧に三ノ宮が出る');
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')));
-  ok(stored.places.length === 10 && stored.places[9].name === '三ノ宮', 'localStorageに保存', stored.places.length);
+  ok(stored.places.length === 9 && stored.places[8].name === '三ノ宮', 'localStorageに保存', stored.places.length);
   ok(await noHScroll(), '追加後も横スクロールなし');
 
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  ok(await cards() === 10, '再読込しても10枚（保存が効く）', await cards());
+  ok(await cards() === 9, '再読込しても9枚（保存が効く）', await cards());
   ok((await page.textContent('.list')).indexOf('三ノ宮') >= 0, '再読込後も三ノ宮が残る');
 
   console.log('5. 並び替え・削除・初期化');
   await page.tap('#btnManage');
   await page.waitForTimeout(500);
-  ok(await page.$$eval('#mBody .mrow', els => els.length) === 10, '管理画面に10行', await page.$$eval('#mBody .mrow', els => els.length));
+  ok(await page.$$eval('#mBody .mrow', els => els.length) === 9, '管理画面に9行', await page.$$eval('#mBody .mrow', els => els.length));
   const firstBefore = await page.$eval('#mBody .mrow .m-name', el => el.textContent);
   await page.tap('#mBody .mrow:nth-child(2) button[data-act="up"]');
   await page.waitForTimeout(400);
@@ -144,17 +144,18 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok((await page.textContent('.list')).indexOf(firstAfter.split('神戸')[0]) >= 0, '一覧にも反映');
   await page.screenshot({ path: SHOT + 'mock-06-manage.' + TAG + 'png' });
 
-  const delRow = await page.$('#mBody .mrow:nth-child(10)');
+  const delRow = await page.$('#mBody .mrow:nth-child(9)');
   await (await delRow.$('button[data-act="del"]')).click();
   await page.waitForTimeout(500);
-  ok(await page.$$eval('#mBody .mrow', els => els.length) === 9, '✕で削除できる', await page.$$eval('#mBody .mrow', els => els.length));
+  ok(await page.$$eval('#mBody .mrow', els => els.length) === 8, '✕で削除できる', await page.$$eval('#mBody .mrow', els => els.length));
 
   await page.tap('#btnReset');
   await page.waitForTimeout(1200);
-  ok(await page.$$eval('#mBody .mrow', els => els.length) === 9, '初期地点に戻すと9件');
-  ok(await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')).places.length) === 9, 'リセットが保存される');
+  ok(await page.$$eval('#mBody .mrow', els => els.length) === 8, '初期地点に戻すと8件');
+  ok(await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')).places.length) === 8, 'リセットが保存される');
   const resetNames = await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')).places.map(p => p.name));
-  ok(resetNames[0].indexOf('自宅（花山）') === 0, '先頭は自宅（花山）', resetNames[0]);
+  ok(resetNames[0] === '自宅（北区）', '先頭は自宅（北区）', resetNames[0]);
+  ok(!resetNames.some(n => n.indexOf('白浜') >= 0), '初期地点に白浜はない', resetNames);
   await page.tap('#manageSheet [data-close]');
   await page.waitForTimeout(300);
 
@@ -170,7 +171,34 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await page.screenshot({ path: SHOT + 'mock-07-offline.' + TAG + 'png' });
   await page.unroute('**/v1/forecast*');
 
-  console.log('7. コンソールエラー');
+  console.log('7. 端末に残った旧9地点の引き継ぎ');
+  await page.route('**/v1/forecast*', async route => {
+    const m = route.request().url().match(/latitude=([^&]+)/);
+    const n = m ? m[1].split(',').length : fixtureN;
+    await route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(buildFixture(n)) });
+  });
+  await page.evaluate(() => localStorage.setItem('my_weather_v1', JSON.stringify({ places: [
+    { id: 'home', name: '自宅（花山）', sub: '神戸市北区 花山東町', emoji: '🏠', cat: 'life', lat: 34.7639, lon: 135.1886, home: true },
+    { id: 'tennoji', name: '天王寺（勤務先）', sub: '大阪市天王寺区', emoji: '🏢', cat: 'life', lat: 34.6473, lon: 135.5139 },
+    { id: 'nishikujo', name: '西九条（プール）', sub: '大阪市此花区', emoji: '🏊', cat: 'life', lat: 34.6828, lon: 135.4668 },
+    { id: 'osaka', name: '大阪・環状線', sub: '大阪市北区', emoji: '🏙️', cat: 'work', lat: 34.7025, lon: 135.4959 },
+    { id: 'otori', name: '鳳（阪和線）', sub: '堺市西区', emoji: '🚉', cat: 'work', lat: 34.5342, lon: 135.4488 },
+    { id: 'kix', name: '関西空港（連絡橋）', sub: '泉佐野市 関空連絡橋', emoji: '✈️', cat: 'work', lat: 34.4347, lon: 135.2440 },
+    { id: 'wakayama', name: '和歌山（阪和線）', sub: '和歌山市', emoji: '🍊', cat: 'work', lat: 34.2323, lon: 135.1916 },
+    { id: 'shirahama', name: '白浜（きのくに線）', sub: '西牟婁郡 白浜町', emoji: '🐼', cat: 'work', lat: 33.6811, lon: 135.3886 },
+    { id: 'kyoto', name: '京都（JR京都線）', sub: '京都市下京区', emoji: '⛩️', cat: 'work', lat: 34.9858, lon: 135.7588 }
+  ], addCat: 'life' })));
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  ok(await cards() === 8, '旧9地点の保存データでも8枚', await cards());
+  const legacyTxt = await page.textContent('.list');
+  ok(legacyTxt.indexOf('白浜') < 0, '白浜は一覧から消える');
+  ok(legacyTxt.indexOf('自宅（北区）') >= 0 && legacyTxt.indexOf('花山') < 0, '自宅は「自宅（北区）」表記（花山は出ない）');
+  const legacy = await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')));
+  ok(legacy.dv === 2 && legacy.places.length === 8, 'dv=2 で8地点が保存し直される', { dv: legacy.dv, n: legacy.places.length });
+  await page.screenshot({ path: SHOT + 'mock-08-migrated.' + TAG + 'png' });
+
+  console.log('8. コンソールエラー');
   ok(onlineErrs.length === 0, '通常操作でのコンソールエラー0件', onlineErrs.slice(0, 5));
 
   console.log('\n結果: ' + pass + ' 件成功 / ' + fail + ' 件失敗');

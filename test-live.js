@@ -40,9 +40,9 @@ function ok(cond, label, extra) {
   await page.waitForTimeout(4500);
 
   console.log('2. 初回表示・実APIデータ');
-  ok(await cards() === 9, 'カード9枚', await cards());
+  ok(await cards() === 8, 'カード8枚', await cards());
   const temps = await page.$$eval('.list .card .tmp', els => els.map(e => e.textContent.trim()));
-  ok(temps.length === 9 && temps.every(t => /\d/.test(t)), '全地点に実気温が入っている', temps);
+  ok(temps.length === 8 && temps.every(t => /\d/.test(t)), '全地点に実気温が入っている', temps);
   ok((await page.textContent('#updated')).indexOf('更新') >= 0, '最終更新時刻', await page.textContent('#updated'));
   ok(await noHScroll(), '横スクロールなし（390px）');
   const visible = await page.$$eval('.list .card', els => els.filter(c => { const r = c.getBoundingClientRect(); return r.top < 844 && r.bottom <= 844; }).length);
@@ -55,10 +55,10 @@ function ok(cond, label, extra) {
   ok(await cards() === 3, '生活＝3件', await cards());
   await page.tap('.pill[data-filter="work"]');
   await page.waitForTimeout(300);
-  ok(await cards() === 6, '乗務範囲＝6件', await cards());
+  ok(await cards() === 5, '乗務範囲＝5件', await cards());
   await page.tap('.pill[data-filter="all"]');
   await page.waitForTimeout(300);
-  ok(await cards() === 9, 'すべて＝9件', await cards());
+  ok(await cards() === 8, 'すべて＝8件', await cards());
 
   console.log('4. 詳細シート（実データ）');
   await page.tap('.card[data-id="kix"]');
@@ -94,7 +94,7 @@ function ok(cond, label, extra) {
   await page.screenshot({ path: SHOT + 'live-04-add.' + TAG + 'png' });
   await page.tap('#results .res');
   await page.waitForTimeout(2500);
-  ok(await cards() === 10, '追加後10枚', await cards());
+  ok(await cards() === 9, '追加後9枚', await cards());
   ok((await page.textContent('.list')).indexOf('三ノ宮') >= 0, '一覧に三ノ宮が出る');
   const newTmp = await page.$eval('.card[data-id^="p"] .tmp', el => el.textContent.trim());
   ok(/\d/.test(newTmp), '追加地点も実データを取得している', newTmp);
@@ -104,11 +104,11 @@ function ok(cond, label, extra) {
   console.log('6. 並び替えシート・後片付け');
   await page.tap('#btnManage');
   await page.waitForTimeout(600);
-  ok(await page.$$eval('#mBody .mrow', els => els.length) === 10, '管理画面に10行', await page.$$eval('#mBody .mrow', els => els.length));
+  ok(await page.$$eval('#mBody .mrow', els => els.length) === 9, '管理画面に9行', await page.$$eval('#mBody .mrow', els => els.length));
   await page.screenshot({ path: SHOT + 'live-06-manage.' + TAG + 'png' });
   await page.tap('#btnReset');
   await page.waitForTimeout(2500);
-  ok(await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')).places.length) === 9, '初期地点に戻せる');
+  ok(await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')).places.length) === 8, '初期地点に戻せる');
   await page.tap('#manageSheet [data-close]');
   await page.waitForTimeout(300);
 

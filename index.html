@@ -383,24 +383,28 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
 (function(){
 'use strict';
 
-var APP_VERSION = '1.0.0';
+var APP_VERSION = '1.1.0';
 var STORE_KEY = 'my_weather_v1';
 var CACHE_KEY = 'my_weather_cache_v1';
 var API = 'https://api.open-meteo.com/v1/forecast';
 var GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 
 /* ---------- 初期地点 ---------- */
+/* 自宅は特定されないよう、町名は出さず座標も代表地点（約1kmずらし）を使う */
+var DEFAULT_VERSION = 2;   /* 既定地点の版。増やすときは下の migrateState に引き継ぎを書く */
 var DEFAULT_PLACES = [
-  {id:'home',     name:'自宅（花山）',        sub:'神戸市北区 花山東町', emoji:'🏠', cat:'life', lat:34.7639, lon:135.1886, home:true},
+  {id:'home',     name:'自宅（北区）',        sub:'神戸市北区',          emoji:'🏠', cat:'life', lat:34.7700, lon:135.1800, home:true},
   {id:'tennoji',  name:'天王寺（勤務先）',    sub:'大阪市天王寺区',      emoji:'🏢', cat:'life', lat:34.6473, lon:135.5139},
   {id:'nishikujo',name:'西九条（プール）',    sub:'大阪市此花区',        emoji:'🏊', cat:'life', lat:34.6828, lon:135.4668},
   {id:'osaka',    name:'大阪・環状線',        sub:'大阪市北区',          emoji:'🏙️', cat:'work', lat:34.7025, lon:135.4959},
   {id:'otori',    name:'鳳（阪和線）',        sub:'堺市西区',            emoji:'🚉', cat:'work', lat:34.5342, lon:135.4488},
   {id:'kix',      name:'関西空港（連絡橋）',  sub:'泉佐野市 関空連絡橋', emoji:'✈️', cat:'work', lat:34.4347, lon:135.2440},
   {id:'wakayama', name:'和歌山（阪和線）',    sub:'和歌山市',            emoji:'🍊', cat:'work', lat:34.2323, lon:135.1916},
-  {id:'shirahama',name:'白浜（きのくに線）',  sub:'西牟婁郡 白浜町',     emoji:'🐼', cat:'work', lat:33.6811, lon:135.3886},
   {id:'kyoto',    name:'京都（JR京都線）',    sub:'京都市下京区',        emoji:'⛩️', cat:'work', lat:34.9858, lon:135.7588}
 ];
+
+/* 以前の既定にあったが、乗務範囲から外した地点（id が既定のものだけ消す） */
+var RETIRED_DEFAULTS = ['shirahama'];   /* v2: 南端は和歌山駅まで */
 
 /* ---------- WMO 天気コード ---------- */
 var WMO = {
@@ -440,8 +444,29 @@ var state = loadState() || { places: clone(DEFAULT_PLACES), addCat:'life' };
 if(state.addCat !== 'work' && state.addCat !== 'life') state.addCat = 'life';
 state.filter = 'all';
 
+/* 保存済みの旧既定を、いまの既定に合わせる（端末に古い一覧が残っていても効く） */
+function migrateState(s){
+  if((s.dv || 1) >= DEFAULT_VERSION) return false;
+  var homeDefault = null;
+  DEFAULT_PLACES.forEach(function(p){ if(p.id === 'home') homeDefault = p; });
+  s.dv = DEFAULT_VERSION;
+  s.places.forEach(function(p){
+    if(!p) return;
+    /* 自宅：表記と座標をぼかした既定へ差し替え（並び順・カテゴリーはそのまま） */
+    if(p.id === 'home' && homeDefault){
+      p.name = homeDefault.name; p.sub = homeDefault.sub;
+      p.lat = homeDefault.lat; p.lon = homeDefault.lon; p.home = true;
+    }
+  });
+  /* 乗務範囲から外した既定地点（自分で追加した地点は id が違うので残る） */
+  s.places = s.places.filter(function(p){ return p && RETIRED_DEFAULTS.indexOf(p.id) < 0; });
+  if(!s.places.length) s.places = clone(DEFAULT_PLACES);
+  return true;
+}
+if(migrateState(state)) saveState();
+
 function saveState(){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify({places:state.places, addCat:state.addCat})); }catch(e){}
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({places:state.places, addCat:state.addCat, dv:state.dv || DEFAULT_VERSION})); }catch(e){}
 }
 
 var placeData = {};            /* id -> 天気データ */
@@ -900,8 +925,9 @@ function removePlace(id){
   toast('「' + p.name + '」を削除しました');
 }
 function resetPlaces(){
-  if(!window.confirm('初期地点（9か所）に戻します。追加・削除した地点は消えます。よろしいですか？')) return;
+  if(!window.confirm('初期地点（' + DEFAULT_PLACES.length + 'か所）に戻します。追加・削除した地点は消えます。よろしいですか？')) return;
   state.places = clone(DEFAULT_PLACES);
+  state.dv = DEFAULT_VERSION;
   saveState(); render(); renderManage(); fetchAll();
   toast('初期地点に戻しました');
 }
