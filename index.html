@@ -330,6 +330,20 @@ main{padding:10px 12px calc(78px + env(safe-area-inset-bottom));max-width:640px;
 body.radar-open{overflow:hidden}
 .radar.focus{position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top));bottom:calc(8px + env(safe-area-inset-bottom));z-index:66;margin:0;display:flex;flex-direction:column;border-radius:18px;box-shadow:0 20px 50px -14px rgba(12,26,40,.6)}
 .radar.focus .radar-map{flex:1 1 auto;height:auto;min-height:180px}
+
+/* ===== 現在地カード ===== */
+.card.geo{background:linear-gradient(180deg,#f3f9ff 0%,#fff 72%);border-color:#cfe2f6}
+.card.geo::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#ffb36b,#e0622b)}
+.card.geo-empty{align-items:flex-start}
+.geo-act{display:flex;align-items:center;gap:7px;margin-top:8px}
+.geo-btn{border:1px solid #bcd8f5;background:#fff;color:#1f5fa8;border-radius:9px;padding:5px 10px;font-size:11.5px;font-weight:750;cursor:pointer;white-space:nowrap}
+.geo-btn:active{transform:scale(.97)}
+.geo-btn[disabled]{opacity:.55;cursor:default}
+.geo-note{font-size:10.5px;color:var(--muted);line-height:1.4;min-width:0}
+.geo-wait{font-size:11.5px;font-weight:750;color:#1f5fa8;white-space:nowrap}
+.rm-pin.geo .d{border-color:#e0622b;background:#fff5ee}
+.rm-pin.geo .l{background:rgba(255,244,236,.92);border-color:#f4cdb4;color:#a04412}
+#rmPins .rm-pin.geo{z-index:2}
 </style>
 </head>
 <body>
@@ -368,7 +382,7 @@ body.radar-open{overflow:hidden}
         <div class="rm-pins" id="rmPins"></div>
         <div class="rm-tag" id="rmTag">—</div>
         <div class="rm-ctrl"><button id="rmZin" aria-label="拡大">＋</button><button id="rmZout" aria-label="縮小">−</button></div>
-        <div class="rm-attr">地図 国土地理院</div>
+        <div class="rm-attr" id="rmAttr">地図 国土地理院</div>
       </div>
       <div class="radar-foot" id="rmFoot"></div>
     </section>
@@ -536,6 +550,95 @@ function saveState(){
 }
 
 var placeData = {};            /* id -> 天気データ */
+
+/* ---------- 現在地（端末の位置情報。自宅のぼかしとは独立） ---------- */
+var GEO_KEY = 'my_weather_geo_v1';
+var GEO_ID = 'geo';
+var geo = { status:'idle', lat:null, lon:null, label:'', err:'', at:0 };
+var geoBusy = false, geoNameSeq = 0, mapMoved = false;
+
+function inJapan(lat, lon){ return lat != null && lon != null && lat > 24 && lat < 46.6 && lon > 122 && lon < 148.5; }
+function geoReady(){ return geo.lat != null && geo.lon != null; }
+function geoPlace(){
+  return { id: GEO_ID, name: '現在地', sub: geo.label || '', emoji: '📍', cat: 'life',
+    lat: geo.lat, lon: geo.lon, geo: true };
+}
+function loadGeo(){
+  try{
+    var raw = localStorage.getItem(GEO_KEY);
+    if(!raw) return;
+    var g = JSON.parse(raw);
+    if(g && typeof g.lat === 'number' && typeof g.lon === 'number'){
+      geo.lat = g.lat; geo.lon = g.lon; geo.label = g.label || ''; geo.at = g.at || 0; geo.status = 'ok';
+    }
+  }catch(e){}
+}
+function saveGeo(){
+  try{ localStorage.setItem(GEO_KEY, JSON.stringify({ lat: geo.lat, lon: geo.lon, label: geo.label, at: geo.at })); }catch(e){}
+}
+function fetchPlaces(){ return state.places.concat(geoReady() ? [geoPlace()] : []); }
+function findPlace(id){
+  if(id === GEO_ID) return geoReady() ? geoPlace() : null;
+  return state.places.filter(function(x){ return x.id === id; })[0];
+}
+
+/* 市区町村程度の地名（町名・番地は使わない） */
+function resolveGeoName(){
+  if(!geoReady()) return;
+  var seq = ++geoNameSeq;
+  var la = geo.lat.toFixed(3), lo = geo.lon.toFixed(3);
+  fetch('https://geoapi.heartrails.com/api/json?method=searchByGeoLocation&x=' + lo + '&y=' + la, { cache:'no-store' })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){
+      var loc = j && j.response && j.response.location;
+      if(Array.isArray(loc) && loc[0] && loc[0].city) return String(loc[0].city);
+      return fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + la + '&longitude=' + lo + '&localityLanguage=ja', { cache:'no-store' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(b){ return (b && (b.city || b.locality || b.principalSubdivision)) || ''; });
+    })
+    .then(function(name){
+      if(seq !== geoNameSeq) return;
+      if(name){ geo.label = String(name).slice(0, 24); saveGeo(); render(); }
+    })
+    .catch(function(){});
+}
+
+function geoRequest(){
+  if(geoBusy) return;
+  if(!navigator.geolocation || typeof navigator.geolocation.getCurrentPosition !== 'function'){
+    geo.status = 'unsupported'; render(); return;
+  }
+  geoBusy = true;
+  geo.status = geoReady() ? 'ok' : 'loading';
+  geo.err = '';
+  render();
+  try{
+    navigator.geolocation.getCurrentPosition(function(pos){
+      geoBusy = false;
+      var la = Math.round(pos.coords.latitude * 10000) / 10000;
+      var lo = Math.round(pos.coords.longitude * 10000) / 10000;
+      var moved = (!geoReady()) || Math.abs(la - geo.lat) > 0.02 || Math.abs(lo - geo.lon) > 0.02;
+      geo.lat = la; geo.lon = lo; geo.at = Date.now(); geo.status = 'ok';
+      saveGeo();
+      if(moved){
+        geo.label = '';
+        saveGeo();
+        resolveGeoName();
+        if(!mapMoved){ RV.lat = la; RV.lon = lo; }
+      }
+      render();
+      fetchAll();
+      renderAll();
+    }, function(err){
+      geoBusy = false;
+      geo.status = (err && err.code === 1) ? 'denied' : 'error';
+      geo.err = (err && err.code === 1) ? '' : ((err && err.message) || '');
+      render();
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 120000 });
+  }catch(e){
+    geoBusy = false; geo.status = 'error'; render();
+  }
+}
 var lastUpdated = null;        /* Date */
 var loadErr = null;
 var loading = false;
@@ -551,6 +654,7 @@ function loadCache(){
     state.places.forEach(function(p){
       if(c.byId[p.id]){ placeData[p.id] = c.byId[p.id]; any = true; }
     });
+    if(geoReady() && c.byId[GEO_ID]){ placeData[GEO_ID] = c.byId[GEO_ID]; any = true; }
     if(any && c.savedAt) lastUpdated = new Date(c.savedAt);
   }catch(e){}
 }
@@ -593,8 +697,8 @@ function normalize(d){
 
 var fetching = null;
 function fetchAll(){
-  if(fetching) return fetching;
-  var places = state.places.slice();
+  if(fetching) return fetching.then(function(){ return fetchAll(); });
+  var places = fetchPlaces();
   if(!places.length){ fetching = null; return Promise.resolve(); }
   loading = true; setRefreshing(true);
 
@@ -759,11 +863,11 @@ function cardHTML(p){
   }
 
   return '' +
-  '<div class="card' + (p.home ? ' is-home' : '') + '" data-id="' + esc(p.id) + '" role="button" tabindex="0" ' +
+  '<div class="card' + (p.home ? ' is-home' : '') + (p.geo ? ' geo' : '') + '" data-id="' + esc(p.id) + '" role="button" tabindex="0" ' +
     'aria-label="' + esc(p.name) + ' の詳細を開く">' +
     '<div class="card-top">' +
       '<div class="pt-emoji">' + esc(p.emoji) + '</div>' +
-      '<div class="pt-name"><span class="nm">' + esc(p.name) + '</span><span class="sub">' + esc(p.sub || '') + '</span></div>' +
+      '<div class="pt-name"><span class="nm">' + esc(p.name) + '</span><span class="sub">' + esc(p.sub || (p.geo ? '端末の位置情報' : '')) + '</span></div>' +
       '<div class="pt-now"><span class="wx">' + meta.icon + '</span>' +
         '<span class="tmp ' + tempClass(t) + '">' + (t==null ? '—' : t + '°') + '</span></div>' +
     '</div>' +
@@ -775,6 +879,28 @@ function cardHTML(p){
       '<span class="m-wind">' + em('💨') + ' <b class="' + (a && a.strong ? 'hi' : '') + '">' + (wind==null?'—':wind+'m/s') + '</b></span>' +
     '</div>' +
     (badges ? '<div class="badges">' + badges + '</div>' : '') +
+    (p.geo ? '<div class="geo-act"><button class="geo-btn" data-act="geo">⟳ 現在地を更新</button>' +
+      '<span class="geo-note">' + (geo.at ? hhmm(new Date(geo.at).toISOString()) + ' 取得' : '端末の位置情報') + '</span></div>' : '') +
+  '</div>';
+}
+
+/* 位置情報がない・拒否されたときの現在地カード */
+function geoCardHTML(){
+  if(geoReady()) return cardHTML(geoPlace());
+  var sub, note = '';
+  if(geo.status === 'loading'){ sub = '位置情報を取得しています…'; }
+  else if(geo.status === 'denied'){ sub = '位置情報が許可されていません'; note = 'ブラウザの設定でこのサイトの位置情報を許可すると、天気を表示できます。'; }
+  else if(geo.status === 'unsupported'){ sub = 'この環境では位置情報を使えません'; note = 'https で開くと現在地の天気を取得できます。'; }
+  else if(geo.status === 'error'){ sub = '位置情報を取得できませんでした'; note = geo.err ? esc(geo.err) : '電波の良い場所でもう一度お試しください。'; }
+  else { sub = 'タップで現在地の天気を表示'; }
+  var btn = geo.status === 'loading'
+    ? '<span class="geo-wait">取得中…</span>'
+    : '<button class="geo-btn" data-act="geo">📍 現在地を取得</button>';
+  return '<div class="card geo geo-empty" data-id="geo" role="button" tabindex="0" aria-label="現在地の天気">' +
+    '<div class="card-top"><div class="pt-emoji">📍</div>' +
+      '<div class="pt-name"><span class="nm">現在地</span><span class="sub">' + esc(sub) + '</span></div>' +
+      '<div class="pt-now">' + btn + '</div></div>' +
+    (note ? '<div class="geo-act"><span class="geo-note">' + note + '</span></div>' : '') +
   '</div>';
 }
 
@@ -782,16 +908,18 @@ function render(){
   var listEl = document.getElementById('list');
   var emptyEl = document.getElementById('empty');
   var places = filtered();
+  var showGeo = state.filter !== 'work';
 
-  document.getElementById('cntAll').textContent = state.places.length;
-  document.getElementById('cntLife').textContent = state.places.filter(function(p){return p.cat==='life';}).length;
+  document.getElementById('cntAll').textContent = state.places.length + 1;
+  document.getElementById('cntLife').textContent = state.places.filter(function(p){return p.cat==='life';}).length + 1;
   document.getElementById('cntWork').textContent = state.places.filter(function(p){return p.cat==='work';}).length;
 
   Array.prototype.forEach.call(document.querySelectorAll('.pill[data-filter]'), function(el){
     el.setAttribute('aria-selected', el.getAttribute('data-filter') === state.filter ? 'true' : 'false');
   });
 
-  if(!places.length){
+  var shown = places.length + (showGeo ? 1 : 0);
+  if(!shown){
     listEl.innerHTML = '';
     emptyEl.hidden = false;
     emptyEl.textContent = state.places.length
@@ -799,7 +927,7 @@ function render(){
       : '地点がありません。＋ 場所を追加するか、☰ から初期地点に戻してください。';
   }else{
     emptyEl.hidden = true;
-    var html = places.map(cardHTML).join('');
+    var html = (showGeo ? geoCardHTML() : '') + places.map(cardHTML).join('');
     if(!lastUpdated && loading){
       for(var i=0;i<Math.min(places.length,5);i++){ html += '<div class="skel"></div>'; }
     }
@@ -906,7 +1034,7 @@ function detailHTML(p){
 }
 
 function renderDetail(id, keepScroll){
-  var p = state.places.filter(function(x){ return x.id === id; })[0];
+  var p = findPlace(id);
   if(!p) return;
   var scrollTop = 0;
   var body = document.getElementById('dBody');
@@ -1237,18 +1365,26 @@ function bind(){
     if(e.key === 'Escape') closeSheets();
   });
 
-  /* カードタップ */
+  /* カードタップ（現在地の取得ボタンは別扱い） */
   document.getElementById('list').addEventListener('click', function(e){
+    var gb = e.target.closest ? e.target.closest('[data-act="geo"]') : null;
+    if(gb){ e.preventDefault(); geoRequest(); return; }
     var card = e.target.closest ? e.target.closest('.card') : null;
     if(!card) return;
-    openDetail(card.getAttribute('data-id'));
+    var id = card.getAttribute('data-id');
+    if(id === GEO_ID && !geoReady()){ geoRequest(); return; }
+    openDetail(id);
   });
   document.getElementById('list').addEventListener('keydown', function(e){
     if(e.key !== 'Enter' && e.key !== ' ') return;
+    var gb = e.target.closest ? e.target.closest('[data-act="geo"]') : null;
+    if(gb){ e.preventDefault(); geoRequest(); return; }
     var card = e.target.closest ? e.target.closest('.card') : null;
     if(!card) return;
     e.preventDefault();
-    openDetail(card.getAttribute('data-id'));
+    var id = card.getAttribute('data-id');
+    if(id === GEO_ID && !geoReady()){ geoRequest(); return; }
+    openDetail(id);
   });
 
   /* 並び替えシート */
@@ -1357,12 +1493,14 @@ function clampView(){
 }
 function panBy(dx, dy){
   var z = RV.z;
+  mapMoved = true;
   RV.lon = uLon(wX(RV.lon, z) - dx, z);
   RV.lat = uLat(wY(RV.lat, z) - dy, z);
   clampView();
 }
 function zoomAtTo(z, cx, cy){
   z = Math.max(6, Math.min(11, z));
+  mapMoved = true;
   var before = fromScreen(cx, cy);
   RV.z = z;
   var after = fromScreen(cx, cy);
@@ -1410,7 +1548,16 @@ function syncTiles(el, urlFor){
   }
 }
 
-function baseURL(x, y, z){ return 'https://cyberjapandata.gsi.go.jp/xyz/pale/' + z + '/' + x + '/' + y + '.png'; }
+function baseURL(x, y, z){
+  if(!inJapan(RV.lat, RV.lon)) return 'https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png';
+  return 'https://cyberjapandata.gsi.go.jp/xyz/pale/' + z + '/' + x + '/' + y + '.png';
+}
+function clearLayer(el){
+  if(!el) return;
+  var imgs = el._imgs || {};
+  for(var k in imgs){ if(imgs[k].parentNode) imgs[k].parentNode.removeChild(imgs[k]); }
+  el._imgs = {};
+}
 function rainURL(x, y, z){
   var f = RZ.frames[RZ.fi];
   if(!f || !f.base || !f.valid) return '';
@@ -1492,9 +1639,11 @@ function refreshFrames(){
 function updateTag(){
   var el = document.getElementById('rmTag');
   if(!el) return;
-  var f = RZ.frames[RZ.fi];
-  if(!f || RZ.mode !== 'rain'){ el.textContent = '—'; el.hidden = RZ.mode !== 'rain'; return; }
+  if(RZ.mode !== 'rain'){ el.hidden = true; return; }
   el.hidden = false;
+  if(!inJapan(RV.lat, RV.lon)){ el.textContent = '雨雲は日本の範囲のみ'; return; }
+  var f = RZ.frames[RZ.fi];
+  if(!f){ el.textContent = '—'; return; }
   var diff = Math.round((f.t - Date.now()) / 60000);
   el.textContent = jstHM(f.t) + (diff === 0 ? ' 現在' : (diff < 0 ? ' ' + Math.abs(diff) + '分前' : ' ' + diff + '分後'));
 }
@@ -1503,6 +1652,7 @@ function renderRain(){
   if(!el) return;
   el.hidden = RZ.mode !== 'rain';
   if(RZ.mode !== 'rain') return;
+  if(!inJapan(RV.lat, RV.lon)){ clearLayer(el); updateTag(); return; }
   syncTiles(el, rainURL);
   updateTag();
 }
@@ -1740,6 +1890,7 @@ function renderPins(){
   var el = document.getElementById('rmPins');
   if(!el) return;
   var html = '', boxes = [];
+  var list = geoReady() ? [geoPlace()].concat(state.places) : state.places;
   function free(b){
     for(var i = 0; i < boxes.length; i++){
       var o = boxes[i];
@@ -1747,20 +1898,20 @@ function renderPins(){
     }
     return true;
   }
-  state.places.forEach(function(p){
+  list.forEach(function(p){
     var pt = toScreen(p.lat, p.lon);
     if(pt.x < -30 || pt.x > mapW + 30 || pt.y < -30 || pt.y > mapH + 30) return;
-    var label = shortName(p.name);
+    var label = p.geo ? '現在地' : shortName(p.name);
     var w = label.length * 5.6 + 8, h = 12;
     var below = { x: pt.x - w / 2, y: pt.y + 11, w: w, h: h };
     var above = { x: pt.x - w / 2, y: pt.y - 11 - h, w: w, h: h };
     var pos = null;
     if(free(below)){ pos = below; }
     else if(free(above)){ pos = above; }
-    else if(p.home){ pos = below; }
+    else if(p.home || p.geo){ pos = below; }
     if(pos) boxes.push(pos);
-    html += '<button class="rm-pin' + (p.home ? ' home' : '') + '" data-id="' + esc(p.id) + '" ' +
-      'style="left:' + pt.x.toFixed(1) + 'px;top:' + pt.y.toFixed(1) + 'px" aria-label="' + esc(p.name) + ' の詳細">' +
+    html += '<button class="rm-pin' + (p.home ? ' home' : '') + (p.geo ? ' geo' : '') + '" data-id="' + esc(p.id) + '" ' +
+      'style="left:' + pt.x.toFixed(1) + 'px;top:' + pt.y.toFixed(1) + 'px" aria-label="' + (p.geo ? '現在地' : esc(p.name) + ' の詳細') + '">' +
       '<span class="d">' + esc(p.emoji) + '</span>' +
       (pos ? '<span class="l" style="top:' + (pos.y - pt.y) + 'px">' + esc(label) + '</span>' : '') +
       '</button>';
@@ -1828,7 +1979,9 @@ function measure(){
 function renderAll(){
   measure();
   syncTiles(document.getElementById('rmBase'), baseURL);
-  if(RZ.mode === 'rain') syncTiles(document.getElementById('rmRain'), rainURL);
+  if(RZ.mode === 'rain') renderRain();
+  var at = document.getElementById('rmAttr');
+  if(at) at.textContent = inJapan(RV.lat, RV.lon) ? '地図 国土地理院' : '地図 © OpenStreetMap';
   renderPins();
   drawOverlay();
   scheduleField();
@@ -1966,11 +2119,13 @@ function initRadar(){
 }
 
 /* ---------- 起動 ---------- */
+loadGeo();
 loadCache();
 bind();
 render();
 fetchAll();
 initRadar();
+geoRequest();
 
 /* テスト用フック */
 window.__mw = {
@@ -1995,6 +2150,13 @@ window.__mw = {
   saveState: saveState,
   getLastUpdated: function(){ return lastUpdated; },
   setFilter: function(f){ state.filter = f; render(); },
+  geo: {
+    status: function(){ return geo.status; },
+    coords: function(){ return geoReady() ? { lat: geo.lat, lon: geo.lon, label: geo.label } : null; },
+    request: geoRequest,
+    place: function(){ return geoReady() ? geoPlace() : null; },
+    label: function(){ return geo.label; }
+  },
   radar: {
     mode: function(){ return RZ.mode; },
     setMode: setMode,

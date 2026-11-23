@@ -48,6 +48,8 @@ function jmaTimes() {
     })
   });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'ja-JP', timezoneId: 'Asia/Tokyo' });
+  await ctx.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:8899' });
+  await ctx.setGeolocation({ latitude: 34.7050, longitude: 135.4900 });
   const page = await ctx.newPage();
   const errs = [];
   const badRes = [];
@@ -55,6 +57,7 @@ function jmaTimes() {
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('dialog', d => d.accept());
   page.on('response', r => { if (r.status() >= 400) badRes.push(r.status() + ' ' + r.url()); });
+  page.on('requestfailed', r => badRes.push('FAILED ' + r.url() + ' ' + ((r.failure() || {}).errorText || '')));
 
   let fixtureN = 9;
   await page.route('**/v1/forecast*', async route => {
@@ -72,9 +75,13 @@ function jmaTimes() {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: [{ name: 'Kobe', latitude: 34.69, longitude: 135.19, admin1: 'Hyogo', country: 'Japan', country_code: 'JP' }] }) });
   });
 
+  /* 現在地: 逆ジオコーディングはモック */
+  await page.route('**/geoapi.heartrails.com/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ response: { location: [{ city: '大阪市北区', town: '梅田' }] } }) }));
+  await page.route('**/api.bigdatacloud.net/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ city: '大阪市北区' }) }));
+
   /* レーダー: 気象庁の時刻一覧・台風情報は JSON、タイルは 1x1 PNG */
   const TIMES = jmaTimes();
-  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGN48f7bfwAJXQPNCDU9dgAAAABJRU5ErkJggg==', 'base64');
   await page.route('**/targetTimes_N1.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TIMES.n1) }));
   await page.route('**/targetTimes_N2.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TIMES.n2) }));
   await page.route('**/typhoon/data/targetTc.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
@@ -89,7 +96,7 @@ function jmaTimes() {
   const res = await page.goto(BASE + '?cb=' + Date.now(), { waitUntil: 'load' });
   await page.waitForTimeout(1400);
   ok(res && res.status() === 200, 'ローカルページが200で開ける', res && res.status());
-  ok(await cards() === 8, 'カード8枚', await cards());
+  ok(await cards() === 9, 'カード9枚（現在地＋8地点）', await cards());
   ok(await noHScroll(), '横スクロールなし（390px）');
   const visible = await page.$$eval('.list .card', els => els.filter(c => { const r = c.getBoundingClientRect(); return r.top < 844 && r.bottom < 844; }).length);
   ok(visible >= 2, 'レーダーの下に地点カードが見える（実際: ' + visible + '）');
@@ -105,17 +112,33 @@ function jmaTimes() {
   ok((await page.textContent('#updated')).indexOf('更新') >= 0, '最終更新時刻を表示', await page.textContent('#updated'));
   await page.screenshot({ path: SHOT + 'mock-01-list.' + TAG + 'png' });
 
-  console.log('2. レーダー（ノータッチで見える雨雲）');
+  console.log('2. 現在地カード（位置情報＋実データ）');
+  await page.waitForTimeout(600);
+  ok(await page.$('.card[data-id="geo"]'), '先頭に現在地カードがある');
+  ok(await page.$eval('.list .card', el => el.getAttribute('data-id')) === 'geo', '一覧のいちばん上に出る');
+  const geoTxt = await page.textContent('.card[data-id="geo"]');
+  ok(geoTxt.indexOf('現在地') >= 0, '見出しは「現在地」');
+  ok(geoTxt.indexOf('大阪市北区') >= 0, '市区町村名を表示（モックの逆ジオコーディング）', geoTxt);
+  ok(/\d+°/.test(geoTxt), '現在地の気温が入る', geoTxt.replace(/\s+/g, ' ').slice(0, 120));
+  ok(!!(await page.$('.card[data-id="geo"] [data-act="geo"]')), 'カードに「現在地を更新」ボタン');
+  const gv = await page.evaluate(() => window.__mw.radar.view());
+  ok(Math.abs(gv.lat - 34.705) < 0.05 && Math.abs(gv.lon - 135.49) < 0.05, 'レーダーの中心が現在地に合う', gv);
+  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 9, 'レーダーに現在地ピンが増える（8＋現在地）', await page.evaluate(() => window.__mw.radar.pinCount()));
+  ok(!!(await page.$('#rmPins .rm-pin.geo')), '現在地ピンは区別される');
+  await page.screenshot({ path: SHOT + 'mock-09-geo.' + TAG + 'png' });
+
+  console.log('3. レーダー（ノータッチで見える雨雲）');
   ok(await page.$eval('#radarPanel', el => { const r = el.getBoundingClientRect(); return r.top > 0 && r.bottom < 844; }), 'レーダーパネルが初期表示で画面内にある');
   ok(await page.$eval('#radarPanel', el => el.getBoundingClientRect().height >= 300), 'レーダーパネルが十分な大きさ', await page.$eval('#radarPanel', el => Math.round(el.getBoundingClientRect().height)));
   ok(await page.$eval('#radarMap', el => el.getBoundingClientRect().height >= 210 && el.getBoundingClientRect().height <= 260), '地図の高さが220〜250px程度', await page.$eval('#radarMap', el => el.getBoundingClientRect().height));
   ok(await page.evaluate(() => { const p = document.getElementById('radarPanel').getBoundingClientRect(); const c = document.querySelector('#list .card').getBoundingClientRect(); return p.bottom <= c.top + 1; }), 'レーダーは地点一覧より上');
   ok(await page.$eval('#rmModes button[data-mode="rain"]', el => el.getAttribute('aria-selected')) === 'true', '初期表示は「🌧️ 雨雲」');
+  ok((await page.textContent('#rmAttr')).indexOf('国土地理院') >= 0, '地図の出典を表示', await page.textContent('#rmAttr'));
   const tiles = await page.evaluate(() => window.__mw.radar.rainTiles());
   ok(tiles.total >= 1 && tiles.loaded === tiles.total, '雨雲タイルが読み込まれている', tiles);
   const base = await page.evaluate(() => window.__mw.radar.baseTiles());
   ok(base.total >= 1 && base.loaded === base.total, '地図（国土地理院）タイルが読み込まれている', base);
-  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 8, '登録8地点のピンが立つ', await page.evaluate(() => window.__mw.radar.pinCount()));
+  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 9, '登録8地点＋現在地のピンが立つ', await page.evaluate(() => window.__mw.radar.pinCount()));
   const pinNames = await page.$$eval('#rmPins .rm-pin', els => els.map(e => e.getAttribute('aria-label')));
   ok(pinNames.some(t => t.indexOf('自宅') >= 0) && pinNames.some(t => t.indexOf('関西空港') >= 0), 'ピンに自宅・関空がある', pinNames);
   ok(/^\d\d:\d\d/.test(await page.textContent('#rmTag')), '雨雲の時刻ラベルが出る', await page.textContent('#rmTag'));
@@ -132,7 +155,7 @@ function jmaTimes() {
   await page.evaluate(() => window.__mw.radar.play(false));
   await page.screenshot({ path: SHOT + 'mock-10-radar-rain.' + TAG + 'png' });
 
-  console.log('3. ワンタッチで 雨雲→風速→台風・気圧');
+  console.log('4. ワンタッチで 雨雲→風速→台風・気圧');
   await page.tap('#rmModes button[data-mode="wind"]');
   await page.waitForTimeout(900);
   ok(await page.$eval('#rmModes button[data-mode="wind"]', el => el.getAttribute('aria-selected')) === 'true', '風速に切り替わる');
@@ -151,7 +174,7 @@ function jmaTimes() {
   ok(link.indexOf('jma.go.jp') >= 0 && link.indexOf('typhoon') >= 0, '気象庁 台風情報へのリンク', link);
   await page.screenshot({ path: SHOT + 'mock-12-radar-pressure.' + TAG + 'png' });
 
-  console.log('4. 拡大表示と地図の操作');
+  console.log('5. 拡大表示と地図の操作');
   await page.tap('#pillRadar');
   await page.waitForTimeout(600);
   ok(await page.evaluate(() => window.__mw.radar.isFocus()), 'ピルのタップで拡大表示になる');
@@ -190,19 +213,19 @@ function jmaTimes() {
   await page.tap('#detailSheet [data-close]');
   await page.waitForTimeout(400);
 
-  console.log('5. 絞り込みピル');
+  console.log('6. 絞り込みピル');
   await page.tap('.pill[data-filter="life"]');
   await page.waitForTimeout(250);
-  ok(await cards() === 3, '生活ピルで3件', await cards());
+  ok(await cards() === 4, '生活ピルで4件（現在地＋3）', await cards());
   ok(await page.$eval('.pill[data-filter="life"]', el => el.getAttribute('aria-selected')) === 'true', '選択状態が切り替わる');
   await page.tap('.pill[data-filter="work"]');
   await page.waitForTimeout(250);
-  ok(await cards() === 5, '乗務範囲ピルで5件', await cards());
+  ok(await cards() === 5, '乗務範囲ピルで5件（現在地は出ない）', await cards());
   await page.tap('.pill[data-filter="all"]');
   await page.waitForTimeout(250);
-  ok(await cards() === 8, 'すべてに戻すと8件', await cards());
+  ok(await cards() === 9, 'すべてに戻すと9件', await cards());
 
-  console.log('6. 詳細ボトムシート');
+  console.log('7. 詳細ボトムシート');
   await page.tap('.card[data-id="tennoji"]');
   await page.waitForTimeout(600);
   ok(await page.$eval('#detailSheet', el => el.classList.contains('open')), 'シートが開く');
@@ -229,7 +252,7 @@ function jmaTimes() {
   await page.waitForTimeout(400);
   ok(!(await page.$eval('#detailSheet', el => el.classList.contains('open'))), '✕でシートが閉じる');
 
-  console.log('7. 場所の追加（検索→追加→保存→再読込）');
+  console.log('8. 場所の追加（検索→追加→保存→再読込）');
   await page.tap('#btnAdd');
   await page.waitForTimeout(500);
   ok(await page.$eval('#addSheet', el => el.classList.contains('open')), '追加シートが開く');
@@ -241,19 +264,19 @@ function jmaTimes() {
   await page.screenshot({ path: SHOT + 'mock-05-add.' + TAG + 'png' });
   await page.tap('#results .res');
   await page.waitForTimeout(900);
-  ok(await cards() === 9, '追加すると9枚になる', await cards());
+  ok(await cards() === 10, '追加すると10枚になる', await cards());
   ok((await page.textContent('.list')).indexOf('三ノ宮') >= 0, '一覧に三ノ宮が出る');
-  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 9, '追加した地点のピンも立つ', await page.evaluate(() => window.__mw.radar.pinCount()));
+  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 10, '追加した地点のピンも立つ', await page.evaluate(() => window.__mw.radar.pinCount()));
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('my_weather_v1')));
   ok(stored.places.length === 9 && stored.places[8].name === '三ノ宮', 'localStorageに保存', stored.places.length);
   ok(await noHScroll(), '追加後も横スクロールなし');
 
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(1400);
-  ok(await cards() === 9, '再読込しても9枚（保存が効く）', await cards());
+  ok(await cards() === 10, '再読込しても10枚（保存が効く）', await cards());
   ok((await page.textContent('.list')).indexOf('三ノ宮') >= 0, '再読込後も三ノ宮が残る');
 
-  console.log('8. 並び替え・削除・初期化');
+  console.log('9. 並び替え・削除・初期化');
   await page.tap('#btnManage');
   await page.waitForTimeout(500);
   ok(await page.$$eval('#mBody .mrow', els => els.length) === 9, '管理画面に9行', await page.$$eval('#mBody .mrow', els => els.length));
@@ -281,8 +304,9 @@ function jmaTimes() {
   await page.waitForTimeout(300);
 
   const onlineErrs = errs.slice();
+  const onlineBad = badRes.slice();
 
-  console.log('9. 通信できないとき');
+  console.log('10. 通信できないとき');
   await page.route('**/v1/forecast*', route => route.abort());
   await page.evaluate(() => localStorage.removeItem('my_weather_cache_v1'));
   await page.reload({ waitUntil: 'load' });
@@ -293,7 +317,7 @@ function jmaTimes() {
   await page.screenshot({ path: SHOT + 'mock-07-offline.' + TAG + 'png' });
   await page.unroute('**/v1/forecast*');
 
-  console.log('10. 端末に残った旧9地点の引き継ぎ');
+  console.log('11. 端末に残った旧9地点の引き継ぎ');
   await page.route('**/v1/forecast*', async route => {
     const url = route.request().url();
     const m = url.match(/latitude=([^&]+)/);
@@ -314,7 +338,7 @@ function jmaTimes() {
   ], addCat: 'life' })));
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(1600);
-  ok(await cards() === 8, '旧9地点の保存データでも8枚', await cards());
+  ok(await cards() === 9, '旧9地点の保存データでも9枚', await cards());
   const legacyTxt = await page.textContent('.list');
   ok(legacyTxt.indexOf('白浜') < 0, '白浜は一覧から消える');
   ok(legacyTxt.indexOf('自宅（北区）') >= 0 && legacyTxt.indexOf('花山') < 0, '自宅は「自宅（北区）」表記（花山は出ない）');
@@ -324,9 +348,35 @@ function jmaTimes() {
   ok(pinTxt.indexOf('花山') < 0, 'レーダーのピンにも花山は出ない');
   await page.screenshot({ path: SHOT + 'mock-08-migrated.' + TAG + 'png' });
 
-  console.log('11. コンソールエラー・失敗レスポンス');
+  console.log('12. 位置情報を拒否されたとき');
+  const preDenial = errs.slice();
+  await page.evaluate(() => localStorage.removeItem('my_weather_geo_v1'));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition(ok, ng) { setTimeout(() => ng({ code: 1, message: 'User denied Geolocation' }), 0); },
+        watchPosition() { return 1; },
+        clearWatch() {}
+      }
+    });
+  });
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  const geoTxt2 = await page.textContent('.card[data-id="geo"]');
+  ok(geoTxt2.indexOf('現在地') >= 0, '拒否されても現在地カードは残る');
+  ok(geoTxt2.indexOf('許可されて') >= 0, '拒否の案内を出す', geoTxt2);
+  ok(!!(await page.$('.card[data-id="geo"] [data-act="geo"]')), '「現在地を取得」ボタンがある');
+  await page.tap('.card[data-id="geo"] [data-act="geo"]');
+  await page.waitForTimeout(800);
+  ok((await page.textContent('.card[data-id="geo"]')).indexOf('現在地') >= 0, '再取得しても崩れない');
+  ok(await cards() === 9, '地点カードはそのまま（現在地＋8）', await cards());
+  await page.screenshot({ path: SHOT + 'mock-14-geo-denied.' + TAG + 'png' });
+
+  console.log('13. コンソールエラー・失敗レスポンス');
   ok(onlineErrs.length === 0, '通常操作でのコンソールエラー0件', onlineErrs.slice(0, 5));
-  ok(badRes.length === 0, 'HTTP 4xx/5xx なし', badRes.slice(0, 5));
+  ok(errs.length === preDenial.length, '位置情報の拒否を含めてコンソールエラー0件', errs.slice(preDenial.length, preDenial.length + 4));
+  ok(onlineBad.length === 0, 'HTTP 4xx/5xx・失敗リクエストなし（通常操作）', onlineBad.slice(0, 3));
 
   console.log('\n結果: ' + pass + ' 件成功 / ' + fail + ' 件失敗');
   await browser.close();

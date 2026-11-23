@@ -43,10 +43,36 @@ function newApp(opts) {
     virtualConsole: vc,
     beforeParse(window) {
       window.confirm = () => true;
+      if (o.geo) {
+        try {
+          Object.defineProperty(window.navigator, 'geolocation', {
+            configurable: true,
+            value: {
+              getCurrentPosition(ok) { setTimeout(() => ok({ coords: { latitude: o.geo.latitude, longitude: o.geo.longitude } }), 0); },
+              watchPosition() { return 1; },
+              clearWatch() {}
+            }
+          });
+        } catch (e) {}
+      }
+      if (o.denyGeo) {
+        try {
+          Object.defineProperty(window.navigator, 'geolocation', {
+            configurable: true,
+            value: {
+              getCurrentPosition(ok, ng) { setTimeout(() => ng({ code: 1, message: 'User denied Geolocation' }), 0); },
+              watchPosition() { return 1; },
+              clearWatch() {}
+            }
+          });
+        } catch (e) {}
+      }
       if (o.seed) window.localStorage.setItem('my_weather_v1', typeof o.seed === 'string' ? o.seed : JSON.stringify(o.seed));
       window.fetch = function (url) {
         calls.push(String(url));
         if (o.fail) return Promise.reject(new Error('offline'));
+        if (String(url).indexOf('heartrails') >= 0) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ response: { location: [{ city: '大阪市北区' }] } }) });
+        if (String(url).indexOf('bigdatacloud') >= 0) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ city: '大阪市北区' }) });
         const count = (String(url).match(/,/g) ? 1 : 0) + 0; // 使わない
         if (String(url).indexOf('/search') >= 0) return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) });
         if (String(url).indexOf('pressure_msl') >= 0) {
@@ -73,9 +99,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const mw = window.__mw;
   ok(!!mw, '__mw フックがある');
   eq(mw.state.places.length, 8, '初期地点は8か所');
-  eq(doc.querySelectorAll('.list .card').length, 8, 'カードが8枚描画される');
+  eq(doc.querySelectorAll('.list .card').length, 9, 'カードが9枚（現在地＋8地点）描画される');
   eq([...doc.querySelectorAll('.pill[data-filter]')].map(p => p.textContent.replace(/\s/g, '')),
-     ['すべて8', '生活3', '乗務範囲5'], 'ピルの件数（すべて8/生活3/乗務範囲5）');
+     ['すべて9', '生活4', '乗務範囲5'], 'ピルの件数（すべて9/生活4/乗務範囲5）');
   ok(doc.querySelector('#pillRadar'), 'ピルに「🗺️ レーダー」がある');
   ok(doc.getElementById('updated').textContent.indexOf('更新') >= 0, '最終更新時刻が出る', doc.getElementById('updated').textContent);
   ok(calls[0].indexOf('wind_speed_unit=ms') > 0, 'APIに wind_speed_unit=ms を指定');
@@ -131,12 +157,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('5. 絞り込みピル');
   doc.querySelector('.pill[data-filter="life"]').dispatchEvent(new window.Event('click', { bubbles: true }));
-  eq(doc.querySelectorAll('.list .card').length, 3, '生活＝3件');
+  eq(doc.querySelectorAll('.list .card').length, 4, '生活＝4件（現在地＋3地点）');
   eq(doc.querySelector('.pill[data-filter="life"]').getAttribute('aria-selected'), 'true', '選択状態が入る');
   doc.querySelector('.pill[data-filter="work"]').dispatchEvent(new window.Event('click', { bubbles: true }));
-  eq(doc.querySelectorAll('.list .card').length, 5, '乗務範囲＝5件');
+  eq(doc.querySelectorAll('.list .card').length, 5, '乗務範囲＝5件（現在地は出ない）');
   doc.querySelector('.pill[data-filter="all"]').dispatchEvent(new window.Event('click', { bubbles: true }));
-  eq(doc.querySelectorAll('.list .card').length, 8, 'すべて＝8件');
+  eq(doc.querySelectorAll('.list .card').length, 9, 'すべて＝9件');
 
   console.log('6. 地点の追加');
   const added = mw.addPlace({ name: '三ノ宮', sub: '神戸市中央区', lat: 34.6946, lon: 135.1955, emoji: '🚉' });
@@ -165,7 +191,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const d2 = app2.doc;
   ok(!d2.getElementById('banner').hidden, 'エラーバナーが出る');
   ok(d2.getElementById('banner').textContent.indexOf('取得できません') >= 0, '取得失敗の文言', d2.getElementById('banner').textContent);
-  eq(d2.querySelectorAll('.list .card').length, 8, 'エラーでも地点は並ぶ');
+  eq(d2.querySelectorAll('.list .card').length, 9, 'エラーでも地点は並ぶ');
   ok(d2.querySelector('.card[data-id="home"] .tmp').textContent.indexOf('—') >= 0, '気温は — 表示');
   ok(d2.getElementById('btnRetry'), '再試行ボタンがある');
 
@@ -197,7 +223,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const st4 = JSON.parse(app4.window.localStorage.getItem('my_weather_v1'));
   eq(st4.dv, 2, '引き継ぎ版（dv=2）が保存される');
   eq(st4.places.length, 8, '保存内容も8地点');
-  eq(app4.doc.querySelectorAll('.list .card').length, 8, '画面も8枚');
+  eq(app4.doc.querySelectorAll('.list .card').length, 9, '画面も9枚（現在地＋8地点）');
 
   const app5 = newApp({ seed: { places: OLD_PLACES.concat([{ id: 'px1', name: '白浜', sub: '西牟婁郡白浜町', emoji: '📍', cat: 'work', lat: 33.68, lon: 135.38, home: false }]), addCat: 'work' } });
   await wait(160);
@@ -256,6 +282,42 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   d7.querySelector('#rmPins .rm-pin[data-id="kix"]').dispatchEvent(new app7.window.Event('click', { bubbles: true }));
   await wait(120);
   ok(d7.getElementById('detailSheet').classList.contains('open'), 'ピンのタップで地点の詳細が開く');
+
+  console.log('13. 現在地カード（位置情報）');
+  const app8 = newApp({ geo: { latitude: 34.7050, longitude: 135.4900 } });
+  await wait(260);
+  const m8 = app8.window.__mw, d8 = app8.doc;
+  ok(!!d8.querySelector('.card[data-id="geo"]'), '現在地カードがある');
+  eq(d8.querySelector('.list .card').getAttribute('data-id'), 'geo', '一覧のいちばん上が現在地');
+  ok(!!m8.geo.coords(), '位置情報を取得できる');
+  eq(m8.geo.coords().lat, 34.705, '緯度');
+  eq(m8.geo.coords().lon, 135.49, '経度');
+  eq(m8.geo.label(), '大阪市北区', '市区町村名（逆ジオコーディング）');
+  const gc = d8.querySelector('.card[data-id="geo"]').textContent;
+  ok(gc.indexOf('現在地') >= 0 && gc.indexOf('大阪市北区') >= 0, 'カードに現在地と地名', gc.replace(/\s+/g, ' ').slice(0, 80));
+  ok(/\d+°/.test(gc), '現在地の気温が出る', gc.replace(/\s+/g, ' ').slice(0, 80));
+  ok(!!d8.querySelector('.card[data-id="geo"] [data-act="geo"]'), '「現在地を更新」ボタンがある');
+  eq(d8.querySelectorAll('.list .card').length, 9, '現在地＋8地点で9枚');
+  eq(m8.state.places.length, 8, '保存される地点は8のまま（現在地は別扱い）');
+  ok(!JSON.parse(app8.window.localStorage.getItem('my_weather_v1')).places.some(p => p.id === 'geo'), '現在地は地点リストに保存しない');
+  const rv8 = m8.radar.view();
+  ok(Math.abs(rv8.lat - 34.705) < 0.05 && Math.abs(rv8.lon - 135.49) < 0.05, 'レーダーの中心が現在地に合う', rv8);
+  ok(!!d8.querySelector('#rmPins .rm-pin.geo'), 'レーダーに現在地ピンがある');
+  d8.querySelector('.card[data-id="geo"]').dispatchEvent(new app8.window.Event('click', { bubbles: true }));
+  await wait(120);
+  ok(d8.getElementById('detailSheet').classList.contains('open'), '現在地カードの詳細が開く');
+
+  console.log('14. 位置情報を拒否されたとき');
+  const app9 = newApp({ denyGeo: true });
+  await wait(220);
+  const d9 = app9.doc;
+  ok(!!d9.querySelector('.card[data-id="geo"]'), '拒否されても現在地カードは残る');
+  ok(d9.querySelector('.card[data-id="geo"]').textContent.indexOf('許可されて') >= 0, '拒否の案内を出す', d9.querySelector('.card[data-id="geo"]').textContent.replace(/\s+/g, ' '));
+  ok(!!d9.querySelector('.card[data-id="geo"] [data-act="geo"]'), '「現在地を取得」ボタンがある');
+  d9.querySelector('.card[data-id="geo"] [data-act="geo"]').dispatchEvent(new app9.window.Event('click', { bubbles: true }));
+  await wait(160);
+  ok(!!d9.querySelector('.card[data-id="geo"]'), '再取得しても崩れない');
+  eq(d9.querySelectorAll('.list .card').length, 9, '地点カードはそのまま（現在地＋8）');
 
   console.log('\n結果: ' + pass + ' 件成功 / ' + fail + ' 件失敗');
   process.exit(fail ? 1 : 0);

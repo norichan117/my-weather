@@ -25,6 +25,8 @@ function ok(cond, label, extra) {
     })
   });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'ja-JP', timezoneId: 'Asia/Tokyo' });
+  await ctx.grantPermissions(['geolocation'], { origin: 'https://norichan117.github.io' });
+  await ctx.setGeolocation({ latitude: 34.7050, longitude: 135.4900 });
   const page = await ctx.newPage();
   const errs = [];
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
@@ -50,7 +52,7 @@ function ok(cond, label, extra) {
   await page.waitForTimeout(4500);
 
   console.log('2. 初回表示・実APIデータ');
-  ok(await cards() === 8, 'カード8枚', await cards());
+  ok(await cards() === 9, 'カード9枚（現在地＋8地点）', await cards());
   const temps = await page.$$eval('.list .card .tmp', els => els.map(e => e.textContent.trim()));
   ok(temps.length === 8 && temps.every(t => /\d/.test(t)), '全地点に実気温が入っている', temps);
   ok((await page.textContent('#updated')).indexOf('更新') >= 0, '最終更新時刻', await page.textContent('#updated'));
@@ -59,13 +61,26 @@ function ok(cond, label, extra) {
   ok(visible >= 2, 'レーダーの下に地点カードが見える（実際: ' + visible + '）', visible);
   await page.screenshot({ path: SHOT + 'live-01-list.' + TAG + 'png' });
 
+  console.log('2G. 現在地カード（実データ）');
+  ok(await page.$eval('.list .card', el => el.getAttribute('data-id')) === 'geo', '現在地カードが先頭に出る');
+  const liveGeo = await page.textContent('.card[data-id="geo"]');
+  ok(liveGeo.indexOf('現在地') >= 0, '見出しは「現在地」');
+  ok(/\d+°/.test(liveGeo), '現在地の気温が入る', liveGeo.replace(/\s+/g, ' ').slice(0, 120));
+  const gv = await page.evaluate(() => window.__mw.radar.view());
+  ok(Math.abs(gv.lat - 34.705) < 0.05 && Math.abs(gv.lon - 135.49) < 0.05, 'レーダーの中心が現在地に合う', gv);
+  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 9, 'レーダーに現在地ピン（8＋1）', await page.evaluate(() => window.__mw.radar.pinCount()));
+  const glabel = await page.evaluate(() => window.__mw.geo.label());
+  ok(typeof glabel === 'string', '逆ジオコーディングの地名を取得（失敗時は空で可）', glabel);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: SHOT + 'live-09-geo.' + TAG + 'png' });
+
   console.log('2R. レーダー（初期表示・タイル・3モード・拡大）');
   ok(await page.$eval('#radarPanel', el => { const r = el.getBoundingClientRect(); return r.top > 0 && r.bottom < 844; }), 'レーダーがノータッチで画面内に出る');
   const lt = await waitTiles(() => window.__mw.radar.rainTiles());
   ok(lt && lt.total > 0 && lt.loaded === lt.total, '気象庁の雨雲タイルが読み込まれる', lt);
   const lb = await waitTiles(() => window.__mw.radar.baseTiles());
   ok(lb && lb.total > 0 && lb.loaded === lb.total, '国土地理院の地図タイルが読み込まれる', lb);
-  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 8, '8地点のピン', await page.evaluate(() => window.__mw.radar.pinCount()));
+  ok(await page.evaluate(() => window.__mw.radar.pinCount()) === 9, '8地点＋現在地のピン', await page.evaluate(() => window.__mw.radar.pinCount()));
   ok(/^\d\d:\d\d/.test(await page.textContent('#rmTag')), '雨雲の時刻ラベル', await page.textContent('#rmTag'));
   const lf = await page.evaluate(() => window.__mw.radar.frames().length);
   ok(lf >= 5, '気象庁の時刻一覧から雨雲のコマが取れる（' + lf + 'コマ）', lf);
@@ -112,13 +127,13 @@ function ok(cond, label, extra) {
   console.log('3. 絞り込みタブ');
   await page.tap('.pill[data-filter="life"]');
   await page.waitForTimeout(300);
-  ok(await cards() === 3, '生活＝3件', await cards());
+  ok(await cards() === 4, '生活＝4件（現在地＋3）', await cards());
   await page.tap('.pill[data-filter="work"]');
   await page.waitForTimeout(300);
-  ok(await cards() === 5, '乗務範囲＝5件', await cards());
+  ok(await cards() === 5, '乗務範囲＝5件（現在地は出ない）', await cards());
   await page.tap('.pill[data-filter="all"]');
   await page.waitForTimeout(300);
-  ok(await cards() === 8, 'すべて＝8件', await cards());
+  ok(await cards() === 9, 'すべて＝9件', await cards());
 
   console.log('4. 詳細シート（実データ）');
   await page.tap('.card[data-id="kix"]');
@@ -154,7 +169,7 @@ function ok(cond, label, extra) {
   await page.screenshot({ path: SHOT + 'live-04-add.' + TAG + 'png' });
   await page.tap('#results .res');
   await page.waitForTimeout(2500);
-  ok(await cards() === 9, '追加後9枚', await cards());
+  ok(await cards() === 10, '追加後10枚', await cards());
   ok((await page.textContent('.list')).indexOf('三ノ宮') >= 0, '一覧に三ノ宮が出る');
   const newTmp = await page.$eval('.card[data-id^="p"] .tmp', el => el.textContent.trim());
   ok(/\d/.test(newTmp), '追加地点も実データを取得している', newTmp);
