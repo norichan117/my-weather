@@ -54,7 +54,7 @@ function ok(cond, label, extra) {
   console.log('2. 初回表示・実APIデータ');
   ok(await cards() === 9, 'カード9枚（現在地＋8地点）', await cards());
   const temps = await page.$$eval('.list .card .tmp', els => els.map(e => e.textContent.trim()));
-  ok(temps.length === 8 && temps.every(t => /\d/.test(t)), '全地点に実気温が入っている', temps);
+  ok(temps.length === 9 && temps.every(t => /\d/.test(t)), '全地点（現在地＋8）に実気温が入っている', temps);
   ok((await page.textContent('#updated')).indexOf('更新') >= 0, '最終更新時刻', await page.textContent('#updated'));
   ok(await noHScroll(), '横スクロールなし（390px）');
   const visible = await page.$$eval('.list .card', els => els.filter(c => { const r = c.getBoundingClientRect(); return r.top < 844 && r.bottom <= 844; }).length);

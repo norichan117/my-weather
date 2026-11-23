@@ -42,7 +42,7 @@
 | `build-icons.py` | アイコンとマニフェストを再生成するスクリプト（`index.html` の `__MANIFEST__` / `__ICON192__` を置換） |
 | `test-fixture.js` | テスト用の Open-Meteo 風レスポンス（雨・強風のシナリオを含む） |
 | `test-logic.js` | jsdom によるロジックテスト（125項目） |
-| `test-browser.js` | Playwright によるモバイル実画面テスト（390×844・94項目、位置情報はモック） |
+| `test-browser.js` | Playwright によるモバイル実画面テスト（390×844・95項目、位置情報はモック） |
 | `test-live.js` | 公開URLに対するライブテスト（位置情報はモック） |
 
 ## テスト
